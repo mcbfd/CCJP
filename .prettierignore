@@ -1,0 +1,14 @@
+# Dépendances et artefacts de build
+/node_modules
+/.next
+/out
+/build
+/coverage
+
+# Fichiers générés
+/src/lib/types.ts
+package-lock.json
+
+# Documentation
+/*.md
+/docs

@@ -18,20 +18,73 @@ région de Saint-Louis, Sénégal.
 
 ## Stack
 
-Next.js 14 (App Router) · Supabase (PostgreSQL + Auth + Storage) · Tailwind CSS · Vercel
-· TypeScript
+Next.js 14.2.35 (App Router) · Supabase (PostgreSQL + Auth + Storage) ·
+Tailwind CSS 3.4 · Vercel · TypeScript
 
-## Documents du dépôt
+> ⚠️ Next.js est volontairement maintenu sur la ligne 14.x, conformément au
+> cahier des charges. Voir **[`docs/SECURITE.md`](docs/SECURITE.md)** pour les
+> avis de sécurité restants et les mitigations appliquées.
+
+## Démarrage rapide
+
+```bash
+# 1. Installer les dépendances
+npm install
+
+# 2. Configurer les variables d'environnement
+cp .env.local.example .env.local
+#    puis renseigner les clés Supabase dans .env.local
+
+# 3. Appliquer les migrations dans Supabase (SQL Editor, dans l'ordre)
+#    supabase/migrations/0001_init_schema.sql
+#    supabase/migrations/0002_rls_policies.sql
+#    supabase/migrations/0003_seed_data.sql
+#    supabase/migrations/0004_storage_buckets.sql
+
+# 4. Générer les types TypeScript depuis la base
+npm run db:types
+
+# 5. Lancer le serveur de développement
+npm run dev            # http://localhost:3000
+```
+
+### Scripts disponibles
+
+| Commande | Usage |
+|---|---|
+| `npm run dev` | Serveur de développement |
+| `npm run build` | Build de production |
+| `npm run lint` | Vérification ESLint |
+| `npm run typecheck` | Vérification TypeScript (`tsc --noEmit`) |
+| `npm run format` | Formatage Prettier |
+| `npm run db:types` | Génère `src/lib/types.ts` depuis le schéma Supabase |
+
+## Documentation du dépôt
 
 | Fichier | Rôle |
 |---|---|
-| [`docs/cahier-des-charges-ccjp.md`](docs/cahier-des-charges-ccjp.md) | **Spécifications officielles** — transcription Markdown du cahier des charges v1.0 fourni par le CCJP |
-| [`PLAN_IMPLEMENTATION.md`](PLAN_IMPLEMENTATION.md) | **Plan d'exécution** — architecture, schéma SQL complet, politiques RLS, tâches par phase, méthode Antigravity |
+| [`docs/cahier-des-charges-ccjp.md`](docs/cahier-des-charges-ccjp.md) | **Spécifications officielles** — transcription du cahier des charges v1.0 |
+| [`PLAN_IMPLEMENTATION.md`](PLAN_IMPLEMENTATION.md) | **Plan d'exécution** — architecture, schéma SQL, tâches par phase, méthode Antigravity |
+| [`docs/SECURITE.md`](docs/SECURITE.md) | **Sécurité** — faille RLS corrigée, avis Next.js, mitigations, règles permanentes |
 
-Le plan opérationnalise le cahier des charges : il apporte le SQL exécutable, les
-politiques de sécurité détaillées, les critères d'acceptation de chaque tâche, et
-les corrections de sécurité à appliquer (notamment sur la politique RLS
-`auth.role() = 'authenticated'` — voir §18.1 du plan).
+## Structure du projet
+
+```
+src/
+├── app/                    # Routes Next.js (App Router)
+│   ├── layout.tsx          # Layout racine, métadonnées SEO, polices
+│   ├── page.tsx            # Accueil provisoire (Phase 0)
+│   └── globals.css         # Styles de base + palette CCJP
+├── lib/
+│   ├── constants.ts        # Les 14 commissions, phases du mandat, devise
+│   ├── utils.ts            # cn(), formatage des dates et nombres en français
+│   └── supabase/
+│       ├── client.ts       # Client navigateur (clé ANON)
+│       ├── server.ts       # Client serveur (session, cookies)
+│       └── admin.ts        # Client privilégié (service_role) — serveur only
+supabase/
+└── migrations/             # 0001 schéma · 0002 RLS · 0003 seed · 0004 storage
+```
 
 ## Périmètre
 
@@ -39,23 +92,30 @@ les corrections de sécurité à appliquer (notamment sur la politique RLS
   événements, programme triennal, bureau exécutif, contact, adhésion.
 - **Administration** — 9 modules : dashboard, actualités, événements, commissions,
   membres, adhésions, messages, médiathèque, paramètres.
-- **Base de données** — 10 tables (CDC) + 1 table `admins` (sécurité), avec
-  Row Level Security sur l'ensemble.
+- **Base de données** — 10 tables (cahier des charges) + 1 table `admins`
+  (sécurité), avec Row Level Security sur l'ensemble.
 
-## Statut
+## Avancement
 
-| | |
-|---|---|
-| Phase | Planification terminée, prête pour le développement |
-| Délai estimé | 5 semaines (35 jours ouvrables) |
-| Coût infrastructure | 0 €/mois (Vercel Hobby + Supabase Free) + ~5 000 FCFA/an pour le domaine `.sn` |
-| Prochaine étape | Validation du plan par le Bureau Exécutif, puis Phase 0 |
+| Phase | Contenu | Statut |
+|---|---|---|
+| **0** | Setup, base de données, UI de base | ✅ **Terminée** |
+| **1** | Base de données & seed CCJP | ⏳ Migrations écrites, à appliquer dans Supabase |
+| **2** | Composants UI & layout | ⬜ À faire |
+| **3** | Pages publiques (12 pages) | ⬜ À faire |
+| **4** | Espace d'administration (9 modules) | ⬜ À faire |
+| **5** | Déploiement Vercel & tests | ⬜ À faire |
 
-## Développement
+**Délai estimé restant :** 4 à 5 semaines.
 
-Le projet sera développé sur **Google Antigravity** (IDE agentique, Gemini 3).
-Voir la section 17 du plan pour la configuration, les règles de prompting et
-l'organisation des tâches par phase.
+## Ce qui reste à faire par le CCJP
+
+1. **Créer le projet Supabase** (gratuit) et récupérer l'URL et les clés API.
+2. **Appliquer les 4 migrations** dans le SQL Editor Supabase.
+3. **Créer le premier compte administrateur** et l'habiliter (procédure en fin de
+   fichier `0002_rls_policies.sql`).
+4. **Fournir les données réelles** : membres du Bureau Exécutif, projets phares
+   par commission, liste des quartiers de Podor, logo.
 
 ---
 

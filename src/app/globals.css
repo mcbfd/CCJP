@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Polices — auto-hébergées via @fontsource (npm).
+ *
+ * Pourquoi @fontsource et pas next/font/google : les fichiers woff2 sont
+ * livrés dans node_modules et copiés dans le build. Aucune requête réseau
+ * vers fonts.googleapis.com n'est nécessaire au moment du build, ce qui rend
+ * la CI/CD (Vercel) indépendante d'un service tiers et garantit un rendu
+ * identique en local, en preview et en production.
+ * (PLAN_IMPLEMENTATION.md §13.1)
+ */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/playfair-display/600.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/playfair-display/800.css";
+
+/**
+ * Styles globaux — CCJP
+ * Palette : voir tailwind.config.ts et PLAN_IMPLEMENTATION.md §4
+ */
+
+:root {
+  --ccjp-vert: #1b5e20;
+  --ccjp-or: #f9a825;
+  --ccjp-rouge: #c62828;
+  --ccjp-marine: #1a3a5c;
+  --ccjp-creme: #f5f0e8;
+  --ccjp-beige: #faf7f2;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ccjp-beige font-sans text-ccjp-marine antialiased;
+  }
+
+  /* Titres institutionnels en Playfair Display */
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  /* Accessibilité : lien d'évitement visible seulement au focus clavier */
+  .skip-link {
+    @apply sr-only;
+  }
+  .skip-link:focus {
+    @apply not-sr-only fixed left-4 top-4 z-50 rounded-md bg-ccjp-vert px-4 py-2
+           text-white;
+  }
+
+  /* Focus visible uniformisé pour la navigation au clavier */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ccjp-or;
+  }
+}
+
+@layer components {
+  /* Filet tricolore utilisé sous les titres de section */
+  .ccjp-rule {
+    @apply h-[3px] w-16 rounded-full bg-ccjp-divider;
+  }
+
+  /* Conteneur de page standard */
+  .ccjp-container {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Respect de la préférence système « réduire les animations » */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
