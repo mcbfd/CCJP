@@ -1,577 +1,619 @@
-# Plan d'implémentation — Plateforme CCJP
-### Conseil Consultatif de la Jeunesse de Podor
+# Plan d'Implémentation — Plateforme Numérique CCJP
+### Conseil Consultatif des Jeunes de Podor
+
+> **Document d'exécution.** Ce plan opérationnalise le
+> [Cahier des Charges officiel](./docs/cahier-des-charges-ccjp.md) (v1.0, 2025).
+> Il apporte ce que le cahier des charges ne contient pas : le schéma SQL complet
+> et exécutable, les politiques RLS détaillées, le découpage des tâches avec
+> critères d'acceptation, la méthode de travail sur Google Antigravity, et les
+> corrections de sécurité à appliquer.
 
 | | |
 |---|---|
-| **Projet** | Site institutionnel + back-office du Conseil Consultatif de la Jeunesse de Podor (CCJP) |
-| **Stack** | Next.js (App Router) · Supabase (PostgreSQL + Auth + Storage) · Tailwind CSS · Vercel |
-| **IDE / exécution** | Google Antigravity (agents Gemini 3) |
-| **Périmètre V1** | Site vitrine institutionnel + page d'administration |
-| **Version du document** | 1.0 |
+| **Projet** | Plateforme Numérique Officielle du CCJP — ccjp-podor.sn |
+| **Stack** | Next.js 14 (App Router) · Supabase · Tailwind CSS · Vercel |
+| **Langage** | TypeScript |
+| **Territoire** | Commune de Podor, région de Saint-Louis, Sénégal |
+| **Mandat** | Programme Triennal 2026–2029 |
+| **Commissions** | 14 commissions techniques |
+| **Devise** | Écoute · Participation · Impact |
+| **Délai** | 5 semaines (35 jours ouvrables) |
+| **Version du plan** | 2.0 — alignée sur le cahier des charges v1.0 |
 | **Date** | 30 septembre 2026 |
-| **Statut** | À valider par le Bureau du CCJP |
 
 ---
 
 ## Table des matières
 
-1. [Vision, objectifs et contexte](#1-vision-objectifs-et-contexte)
+1. [Contexte et cadre de référence](#1-contexte-et-cadre-de-référence)
 2. [Périmètre fonctionnel](#2-périmètre-fonctionnel)
 3. [Architecture technique](#3-architecture-technique)
-4. [Modèle de données Supabase](#4-modèle-de-données-supabase)
-5. [Rôles, authentification et habilitations](#5-rôles-authentification-et-habilitations)
-6. [Spécifications fonctionnelles par module](#6-spécifications-fonctionnelles-par-module)
-7. [Design system et interface](#7-design-system-et-interface)
-8. [Contraintes réseau, performance et accessibilité](#8-contraintes-réseau-performance-et-accessibilité)
-9. [SEO, référencement et mesure d'audience](#9-seo-référencement-et-mesure-daudience)
-10. [Sécurité et conformité](#10-sécurité-et-conformité)
-11. [Découpage en sprints (backlog de réalisation)](#11-découpage-en-sprints-backlog-de-réalisation)
-12. [Méthode d'exécution sur Google Antigravity](#12-méthode-dexécution-sur-google-antigravity)
-13. [Configuration et variables d'environnement](#13-configuration-et-variables-denvironnement)
-14. [Déploiement et CI/CD sur Vercel](#14-déploiement-et-cicd-sur-vercel)
-15. [Recette, mise en production et reprise des contenus](#15-recette-mise-en-production-et-reprise-des-contenus)
-16. [Maintenance et exploitation](#16-maintenance-et-exploitation)
-17. [Annexes](#17-annexes)
+4. [Charte graphique](#4-charte-graphique)
+5. [Arborescence du projet](#5-arborescence-du-projet)
+6. [Modèle de données Supabase](#6-modèle-de-données-supabase)
+7. [Sécurité, RLS et authentification](#7-sécurité-rls-et-authentification)
+8. [Les 14 commissions](#8-les-14-commissions)
+9. [Pages publiques](#9-pages-publiques)
+10. [Espace d'administration](#10-espace-dadministration)
+11. [Plan d'implémentation par phases](#11-plan-dimplémentation-par-phases)
+12. [Planning de développement](#12-planning-de-développement)
+13. [Performance, SEO et accessibilité](#13-performance-seo-et-accessibilité)
+14. [Variables d'environnement et dépendances](#14-variables-denvironnement-et-dépendances)
+15. [Déploiement Vercel et CI/CD](#15-déploiement-vercel-et-cicd)
+16. [Recette et checklist de mise en production](#16-recette-et-checklist-de-mise-en-production)
+17. [Méthode d'exécution sur Google Antigravity](#17-méthode-dexécution-sur-google-antigravity)
+18. [Écarts, alertes et recommandations](#18-écarts-alertes-et-recommandations)
+19. [Évolutions futures — Phase 2](#19-évolutions-futures--phase-2)
+20. [Annexes](#20-annexes)
 
 ---
 
-## 1. Vision, objectifs et contexte
+## 1. Contexte et cadre de référence
 
-### 1.1 Contexte
+### 1.1 Le CCJP
 
-Le **Conseil Consultatif de la Jeunesse de Podor (CCJP)** est l'instance de consultation et de proposition de la jeunesse du département de **Podor**, dans la région de **Saint-Louis** (Sénégal), au cœur du **Fouta Toro**.
+Le **Conseil Consultatif des Jeunes de Podor (CCJP)** est un cadre institutionnel
+de concertation, de proposition et d'action au service de la jeunesse de la
+**commune de Podor**, région de Saint-Louis, au Sénégal. Il est structuré autour
+de **14 commissions techniques** et d'un **Bureau Exécutif élu**, et opère sur un
+mandat **triennal 2026–2029** en trois phases :
 
-Repères territoriaux à intégrer dans la plateforme :
-
-| Élément | Valeur |
-|---|---|
-| Département | Podor (chef-lieu : Podor) |
-| Région | Saint-Louis |
-| Arrondissements | Thillé Boubacar · Gamadji Saré · Cas-Cas · Saldé |
-| Communes (12) | Aéré Lao, Bodé Lao, Démètte, Galoya Toucouleur, Golléré, Guédé Chantier, Mboumba, Ndiandane, Ndioum, Pété, Podor, Walaldé |
-| Communautés rurales (10) | Doumga Lao, Madina Diathbé, Méry, Dodel, Gamadji Saré, Guédé Village, Boké Dialloubé, Mbolo Birane, Fanaye, Ndiayène Peindao |
-| Population | ≈ 486 000 habitants (RGPH 2023) |
-| Langues locales | Pulaar (dominant), Wolof, Français, Maure |
-
-**Rattachement institutionnel.** Au niveau national, le *Conseil consultatif des Jeunes du Sénégal (CCJS)* a été créé par le **décret n° 2025-1962 du 5 décembre 2025** et installé officiellement le **29 septembre 2026**. Son architecture prévoit une représentation territoriale fine : **2 conseillers par commune, 2 par département, 2 par région**, avec un bureau élu au niveau national. Le CCJP s'inscrit donc dans cette chaîne de légitimité : **terrain → département → région → national**. La plateforme doit rendre visible cette articulation et non fonctionner en vase clos.
-
-### 1.2 Les trois objectifs de la plateforme
-
-| # | Objectif formulé par le CCJP | Traduction fonctionnelle |
+| Année | Phase | Contenu |
 |---|---|---|
-| **O1** | **Informer** | Publier des actualités, communiqués, notes de réflexion et décisions du Conseil, accessibles au plus grand nombre, y compris hors connexion stable |
-| **O2** | **Réunir la jeunesse podoroise** | Donner à voir une structure vivante : bureau, conseillers par commune, commissions, agenda, moyens de contact et de contribution |
-| **O3** | **Vulgariser les activités de chaque commission** | Un espace dédié par commission, avec ses activités, ses réalisations, ses rapports et ses indicateurs, compréhensible par un jeune de 15 ans comme par un partenaire technique |
+| **2026-2027** | Structuration & renforcement des capacités | Diagnostics, mise en place des cadres, formation des jeunes, lancement des programmes fondateurs |
+| **2028** | Consolidation & développement | Déploiement des réseaux, forums et campagnes, montée en puissance des actions communautaires |
+| **2029** | Pérennisation, plaidoyer & héritage | Assises, livres blancs, prix et rapports pour ancrer durablement les acquis du mandat |
 
-### 1.3 Personas
+### 1.2 Les 4 objectifs de la plateforme
 
-| Persona | Besoin | Attente clé |
+Mandatée par la **Commission 02 — Communication & Relations Publiques** (axe
+*« Plateformes numériques officielles »*) :
+
+| # | Objectif | Traduction fonctionnelle |
 |---|---|---|
-| **Jeune Podorois (15–35 ans)** | « Que fait le CCJP pour moi ? » | Comprendre vite, trouver où et quand ont lieu les activités, pouvoir proposer |
-| **Conseiller / membre du CCJP** | « Où en est ma commission ? » | Retrouver les comptes rendus, les dates de réunion, les membres de sa commission |
-| **Responsable de commission** | « Comment rendre visible mon travail ? » | Publier lui-même les activités de sa commission, sans passer par un informaticien |
-| **Secrétaire exécutif / Bureau** | « Comment piloter ? » | Tableau de bord, état des publications, messages reçus, statistiques |
-| **Partenaire / autorité (MJS, conseil départemental, ONG, presse)** | « Quelle est la légitimité et la traçabilité ? » | Documents officiels, rapports d'activité, historique daté |
-| **Administrateur du site** | « Je ne suis pas développeur » | Interface d'administration 100 % en français, simple, sans code |
+| **O1** | **Informer** | Actualités du CCJP, comptes rendus des commissions, décisions du Bureau Exécutif, programme triennal — diffusés à la jeunesse podoroise et à la diaspora |
+| **O2** | **Rassembler** | Point de ralliement numérique ; formulaire d'adhésion ; sentiment d'appartenance à la communauté CCJP |
+| **O3** | **Vulgariser** | Rendre accessibles les activités de chacune des 14 commissions : vision, axes stratégiques, projets phares, résultats concrets |
+| **O4** | **Administrer** | Espace sécurisé pour publier du contenu, gérer les adhésions, les événements et les informations institutionnelles |
 
-### 1.4 Indicateurs de succès (KPI)
+### 1.3 Utilisateurs cibles
+
+| Profil | Description | Accès | Besoins principaux |
+|---|---|---|---|
+| **Jeunes de Podor** | 15–35 ans, résidents de la commune | Public | S'informer, rejoindre le CCJP, suivre les événements |
+| **Diaspora podoroise** | Communauté à l'international | Public | Rester connecté, soutenir les initiatives |
+| **Partenaires & institutionnels** | Mairie, ONG, entreprises | Public | Découvrir le programme, établir des partenariats |
+| **Administrateurs CCJP** | Bureau Exécutif, responsables de commissions | Admin sécurisé | Publier du contenu, gérer les adhésions et messages |
+
+### 1.4 Indicateurs de succès
 
 | Indicateur | Cible à 6 mois |
 |---|---|
-| Articles publiés / mois | ≥ 4 |
+| Actualités publiées / mois | ≥ 4 |
 | Délai de publication après une activité | ≤ 72 h |
-| Commissions avec au moins une activité publiée | 100 % |
-| Taux de remplissage de la fiche « Activité » | ≥ 90 % |
+| Commissions avec une page renseignée (vision + axes) | 100 % (14/14) |
+| Demandes d'adhésion reçues | ≥ 100 |
 | Visiteurs uniques mensuels | ≥ 5 000 |
 | Temps de chargement mobile (LCP) | ≤ 2,5 s |
-| Messages reçus via le formulaire | ≥ 30 / mois |
 
 ---
 
 ## 2. Périmètre fonctionnel
 
-### 2.1 Dans le périmètre V1 (ce plan)
+### 2.1 Dans le périmètre (conforme au cahier des charges)
 
-**Espace public**
-- Page d'accueil éditoriale (à la une, dernières actualités, agenda, bloc « réunir la jeunesse », accès commissions)
-- Actualités : liste filtrable + fiche article
-- Présentation du CCJP : missions, organisation, historique, lien avec le CCJS
-- Bureau exécutif et conseillers (annuaire, filtrable par commune)
-- **Commissions** : liste + page dédiée par commission
-- **Activités** : liste filtrable (par commission, par type, par commune, par période) + fiche activité avec compte rendu, indicateurs et galerie
-- Agenda / événements à venir
-- Ressources documentaires (PV, statuts, rapports, communiqués) — téléchargement
-- Galerie photos
-- Formulaire de contact + formulaire « Propose ton idée au CCJP »
-- Recherche plein texte
-- Newsletter (inscription simple)
-- Mentions légales, politique de confidentialité, accessibilité
+**Espace public — 12 pages**
+Accueil · À Propos · Commissions (liste + détail) · Actualités (liste + article) ·
+Événements (liste + détail) · Programme Triennal · Bureau Exécutif · Contact ·
+Rejoindre le CCJP.
 
-**Back-office (`/admin`)**
-- Authentification sécurisée, tableau de bord
-- CRUD complet : actualités, activités, événements, commissions, membres, documents, médias
-- Modération des messages reçus (statut, réponse type)
-- Paramètres du site (nom, logo, coordonnées, réseaux sociaux, textes d'accueil)
-- Gestion des comptes administrateurs et de leurs rôles
-- Brouillons / planification de publication / archivage
+**Espace d'administration — 9 modules**
+Dashboard · Actualités · Événements · Commissions · Membres (Bureau Exécutif) ·
+Adhésions · Messages · Médiathèque · Paramètres.
 
-### 2.2 Hors périmètre V1 (feuille de route V2 / V3)
+**Base de données — 10 tables**
+`commissions` · `membres_bureau` · `actualites` · `evenements` · `projets_phares` ·
+`adhesions` · `contacts` · `medias` · `statistiques_indicateurs` · `parametres`.
 
-| Version | Fonctionnalités |
+### 2.2 Hors périmètre (Phase 2 — voir §19)
+
+Analytics, newsletter, notifications temps réel, multilinguisme (Pulaar /
+anglais), PWA, carte interactive de Podor, génération PDF, médiathèque enrichie.
+
+### 2.3 Ajouts proposés par ce plan (hors cahier des charges)
+
+Trois ajouts, tous justifiés en §18 :
+
+| Ajout | Raison |
 |---|---|
-| **V2** | Espace membre connecté ; dépôt de propositions par commission ; suivi de projet ; commentaires modérés ; sondages/consultations en ligne ; notifications e-mail ; version **Pulaar** et **Wolof** du site |
-| **V3** | Application mobile (PWA) ; diffusion hors-ligne ; tableau de bord analytique avancé ; intégration Open Data ; module budget/projets |
-
-### 2.3 Hypothèses et points à valider
-
-> Ces points doivent être confirmés par le Bureau du CCJP avant le lancement du Sprint 1. Voir aussi §17.4.
-
-- La liste exacte des **commissions** du CCJP n'est pas encore arrêtée dans ce document. Les 7 commissions proposées en §6.4 sont un **modèle par défaut** à ajuster.
-- Le nombre de conseillers, la durée du mandat et la composition du bureau sont à fournir.
-- Le CCJP dispose (ou disposera) d'un compte **Supabase** et d'un compte **Vercel** — sinon, ils seront créés en phase 0.
-- L'hébergement des documents officiels reste sur le bucket Supabase (V1) ; un archivage externe peut être envisagé si les volumes deviennent importants.
-
-### 2.4 Ce que j'attends de vos documents
-
-Vous avez indiqué vouloir coller vos documents dans le chat. Pour transformer ce plan en spécification définitive et compléter les §§ 2.3, 4.7 et 6.4, merci de me transmettre :
-
-| Document | Ce qu'il permet de figer |
-|---|---|
-| Statuts / règlement intérieur du CCJP | Dénomination exacte, missions, commissions officielles, règles de décision |
-| Décret / arrêté ou texte créant le CCJP | Base légale, champ de compétences, rattachement au CCJS |
-| Liste du bureau et des conseillers | Modèle `members`, filtres par commune, ordre d'affichage |
-| Liste et périmètre des commissions | Table `commissions`, `activity_type`, gabarits de pages |
-| Comptes rendus / rapports d'activité existants | Modèle `activities`, catégories de documents |
-| Charte graphique (logo, couleurs, polices) | §7 Design system |
-| Contenus rédigés (textes de présentation, discours) | §6.1 et §6.3, reprise de contenus |
+| **Table `admins`** | Corrige une faille de sécurité dans la politique RLS du cahier des charges (voir §18.1) |
+| **Recherche plein texte** sur les actualités | Utile dès le lancement, coût d'implémentation très faible |
+| **Compteur de vues** sur les articles | Mesure d'audience minimale en attendant la Phase 2 |
 
 ---
 
 ## 3. Architecture technique
 
-### 3.1 Stack retenue et justification
+### 3.1 Stack (conforme au cahier des charges)
 
 | Couche | Technologie | Justification pour le CCJP |
 |---|---|---|
-| **Framework** | **Next.js 15** (App Router, React 19, TypeScript) | Rendu serveur = pages rapides même en 3G ; routage par fichiers ; image optimisation intégrée ; Server Actions pour le back-office sans API REST à écrire |
-| **Base de données** | **Supabase** (PostgreSQL hébergé) | Base relationnelle robuste, **Row Level Security** native, Auth intégrée, Storage pour les fichiers, génération automatique des types TypeScript, sauvegardes |
-| **Authentification** | **Supabase Auth** | E-mail + mot de passe pour l'équipe ; zéro serveur à maintenir ; sessions sécurisées par cookie httpOnly |
-| **Stockage fichiers** | **Supabase Storage** | Images d'actualités, galerie, PDF ; CDN ; politiques d'accès par bucket |
-| **Styles** | **Tailwind CSS v4** | Rapide, cohérent, peu de CSS custom ; design tokens en CSS-first (`@theme`) |
-| **Composants UI** | **shadcn/ui** + **lucide-react** | Composants accessibles, non verrouillés dans une dépendance opaque |
-| **Éditeur de texte** | **Tiptap** (ou `@blocknote/...`) | Éditeur WYSIWYG français pour les rédacteurs non techniques |
-| **Hébergement** | **Vercel** | Déploiement Git automatique, preview par branche, CDN mondial, analytics, domaine `.sn` gérable |
-| **Qualité** | ESLint, Prettier, `tsc --noEmit`, Playwright | Filet de sécurité avant chaque mise en production |
+| **Framework** | **Next.js 14** — App Router, React Server Components, TypeScript | Rendu hybride SSG / ISR / SSR ; pages rapides même en 3G ; routes API intégrées ; image optimisation native |
+| **Base de données** | **Supabase** — PostgreSQL, Auth, Storage | Relationnel robuste, RLS native, Auth intégrée, Storage avec CDN, sauvegardes, génération de types TypeScript |
+| **Styles** | **Tailwind CSS** | Mobile first, thème personnalisé aux couleurs CCJP, peu de CSS custom |
+| **Hébergement** | **Vercel** | CI/CD depuis GitHub, preview par branche, CDN mondial, HTTPS, domaine `.sn` |
 
-**Pourquoi pas WordPress ?** Un CMS classique aurait été plus rapide à installer, mais génère du code serveur étatique, des plugins de sécurité à patcher et une expérience d'administration frustrante. La stack choisie donne un site **statique généré + rafraîchi à la demande** (ISR) : coût d'hébergement quasi nul, sécurité forte, et une base de données relationnelle qui rendra les évolutions V2 (espace membre) naturelles.
+**Bibliothèques complémentaires**
+
+| Package | Usage |
+|---|---|
+| `@supabase/supabase-js`, `@supabase/ssr` | Client Supabase navigateur et serveur |
+| `react-hook-form`, `@hookform/resolvers`, `zod` | Formulaires et validation (client + serveur) |
+| `lucide-react` | Icônes |
+| `date-fns` (+ locale `fr`) | Formatage des dates en français |
+| `slugify` | Génération des slugs |
+| `sonner` | Notifications (toasts) |
+| `recharts` | Graphiques du dashboard (Phase 2) |
+
+> **Note sur la version de Next.js.** Le cahier des charges spécifie **Next.js 14** ;
+> ce plan s'y tient. Le code produit est compatible Next.js 15 sans modification
+> (l'App Router et les Server Actions sont identiques), ce qui laisse la porte
+> ouverte à une montée de version ultérieure sans réécriture.
 
 ### 3.2 Vue d'ensemble
 
 ```
-                          ┌──────────────────────────────┐
-   Jeune Podorois  ──────▶│  VERCEL  (CDN + Edge)        │
-   Conseiller      ──────▶│  ┌────────────────────────┐  │
-   Partenaire      ──────▶│  │  Next.js 15 App Router │  │
-                          │  │  ───────────────────   │  │
-                          │  │  RSC / SSR / ISR       │  │
-                          │  │  Server Actions        │  │
-                          │  └───────────┬────────────┘  │
-                          └──────────────┼───────────────┘
-                                         │ HTTPS (clé service_role côté serveur uniquement)
-                          ┌──────────────▼───────────────┐
-                          │  SUPABASE                    │
-                          │  ┌───────────┐ ┌──────────┐  │
-                          │  │ PostgreSQL│ │  Storage │  │
-                          │  │  + RLS    │ │ (images, │  │
-                          │  │  + pg_trgm│ │  PDF)    │  │
-                          │  └───────────┘ └──────────┘  │
-                          │  ┌───────────┐ ┌──────────┐  │
-                          │  │   Auth    │ │ Realtime │  │
-                          │  └───────────┘ └──────────┘  │
-                          └──────────────────────────────┘
+                        ┌─────────────────────────────────┐
+   Jeune Podorois ─────▶│  VERCEL — CDN + Edge Network    │
+   Diaspora        ─────▶│  ┌───────────────────────────┐  │
+   Partenaire      ─────▶│  │  Next.js 14 App Router    │  │
+                        │  │  ───────────────────────  │  │
+                        │  │  SSG  · ISR 60–3600 s     │  │
+                        │  │  SSR (admin) · Client     │  │
+                        │  │  Server Actions           │  │
+                        │  └────────────┬──────────────┘  │
+                        └───────────────┼─────────────────┘
+                                        │ HTTPS
+                        ┌───────────────▼─────────────────┐
+                        │  SUPABASE                       │
+                        │  ┌────────────┐  ┌───────────┐  │
+                        │  │ PostgreSQL │  │  Storage  │  │
+                        │  │  + RLS     │  │ 4 buckets │  │
+                        │  │  + pg_trgm │  │           │  │
+                        │  └────────────┘  └───────────┘  │
+                        │  ┌────────────┐  ┌───────────┐  │
+                        │  │   Auth     │  │ Realtime  │  │
+                        │  │ email/pwd  │  │ (Phase 2) │  │
+                        │  └────────────┘  └───────────┘  │
+                        └─────────────────────────────────┘
 ```
 
 Flux de données :
-1. Les visiteurs lisent des pages **prérendues** (ISR) servies par le CDN Vercel.
-2. Toute écriture passe par une **Server Action** protégée, qui utilise le client Supabase **serveur** avec la session de l'utilisateur.
-3. La **RLS PostgreSQL** est le dernier rempart : même si le code applicatif avait une faille, la base refuse l'accès.
-4. À chaque publication, on **revalide le cache** (`revalidatePath` / `revalidateTag`) pour une mise en ligne immédiate.
+1. Les visiteurs lisent des pages **prérendues** servies par le CDN Vercel.
+2. Toute écriture passe par une **Server Action** protégée, utilisant le client
+   Supabase serveur avec la session de l'utilisateur.
+3. La **RLS PostgreSQL** est le dernier rempart : même si le code applicatif avait
+   une faille, la base refuse l'accès.
+4. À chaque publication, **revalidation ciblée** du cache (`revalidatePath` /
+   `revalidateTag`) pour une mise en ligne immédiate.
 
-### 3.3 Environnements
+### 3.3 Stratégie de rendu par page
 
-| Environnement | Branche Git | URL | Base Supabase | Usage |
-|---|---|---|---|---|
-| **Local** | feature/* | `localhost:3000` | Projet Supabase de dev | Développement agent Antigravity |
-| **Preview** | PR / branche | `*.vercel.app` | Projet de dev | Recette par le Bureau |
-| **Production** | `main` | `www.ccjp-podor.sn` | Projet Supabase de prod | Public |
+| Page | Rendu | Revalidation | Motif |
+|---|---|---|---|
+| `/` | ISR | 60 s | Actualités et événements frais |
+| `/a-propos` | SSG | — | Contenu statique |
+| `/commissions` | ISR | 3600 s | Les 14 commissions changent rarement |
+| `/commissions/[slug]` | ISR | 1800 s | Projets phares et actualités liées |
+| `/actualites` | ISR | 120 s | Liste à garder fraîche |
+| `/actualites/[slug]` | ISR | 300 s | Article individuel |
+| `/evenements` | ISR | 300 s | Filtrage par date |
+| `/evenements/[id]` | ISR | 600 s | Détail d'un événement |
+| `/programme` | SSG | — | Programme triennal figé |
+| `/bureau-executif` | ISR | 3600 s | Composition stable |
+| `/contact` | Client | — | Formulaire interactif |
+| `/rejoindre` | Client | — | Formulaire interactif |
 
-Règle stricte : **jamais de clé `service_role` dans un projet Vercel de preview**, et jamais dans du code client.
+---
 
-### 3.4 Arborescence du projet
+## 4. Charte graphique
+
+### 4.1 Palette officielle CCJP
+
+| Token Tailwind | Nom | Hex | Usage |
+|---|---|---|---|
+| `ccjp-vert` | Vert Foncé | `#1B5E20` | **Couleur principale** — boutons primaires, en-têtes, titres de section |
+| `ccjp-or` | Or / Jaune | `#F9A825` | **Accent principal** — CTA, badges, soulignements, survols |
+| `ccjp-rouge` | Rouge | `#C62828` | Accent secondaire — alertes, suppression |
+| `ccjp-marine` | Bleu Marine | `#1A3A5C` | Textes, fonds sombres, navbar, footer |
+| `ccjp-creme` | Crème | `#F5F0E8` | Fonds de sections alternées |
+| `ccjp-beige` | Beige | `#FAF7F2` | Fond de page |
+
+```ts
+// tailwind.config.ts
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+  content: [
+    './app/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        ccjp: {
+          vert:    '#1B5E20',
+          or:      '#F9A825',
+          rouge:   '#C62828',
+          marine:  '#1A3A5C',
+          creme:   '#F5F0E8',
+          beige:   '#FAF7F2',
+        },
+      },
+      fontFamily: {
+        sans:    ['Inter', 'system-ui', 'sans-serif'],
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
+      },
+      boxShadow: {
+        card: '0 2px 12px rgba(26, 58, 92, 0.08)',
+      },
+    },
+  },
+  plugins: [],
+}
+export default config
+```
+
+### 4.2 Typographie
+
+- **Titres** : `Playfair Display` (serif, institutionnel) — conforme au cahier des charges.
+- **Corps** : `Inter` (sans-serif, très lisible sur mobile).
+- Les deux polices sont auto-hébergées via `next/font/google` (pas d'appel CDN
+  bloquant, meilleures performances au Sénégal).
+
+### 4.3 Couleurs des 14 commissions
+
+Utilisées pour les bordures, icônes et badges des cartes de commission :
+
+| Couleur | Hex | Commissions |
+|---|---|---|
+| Bleu Marine | `#1A3A5C` | 01, 03, 05, 10, 13, 14 |
+| Vert Foncé | `#1B5E20` | 02, 08, 09, 11, 12 |
+| Brun | `#7B3F00` | 04, 06, 07 |
+
+### 4.4 Composants de base
+
+| Composant | Description |
+|---|---|
+| `Button` | 4 variantes : primaire (vert), accent (or), secondaire (marine), fantôme |
+| `Card` | Carte générique avec bordure colorée optionnelle |
+| `Badge` | Étiquette de statut / commission, colorée |
+| `SectionTitle` | Titre de section avec filet dégradé vert → or |
+| `StatCard` | Bloc chiffre clé (valeur + libellé) |
+| `CommissionCard` | Carte commission (icône, numéro, nom, couleur) |
+| `Navbar` | Logo, navigation, bouton « Rejoindre le CCJP », menu burger mobile |
+| `Footer` | Logo, navigation, commissions, contact, réseaux sociaux, devise |
+| `AdminSidebar` | Navigation des 9 modules admin |
+| `DataTable` | Tableau admin (tri, pagination, actions) |
+| `Modal` | Confirmation avant suppression |
+| `Toast` | Notifications de succès / erreur |
+
+---
+
+## 5. Arborescence du projet
 
 ```
-ccjp/
-├── .env.local.example
-├── next.config.ts
-├── package.json
-├── tsconfig.json
-├── postcss.config.mjs
-├── middleware.ts                    # protection des routes /admin
-├── README.md
-├── PLAN_IMPLEMENTATION.md
-├── supabase/
-│   ├── config.toml
-│   ├── migrations/
-│   │   ├── 0001_init_schema.sql
-│   │   ├── 0002_rls_policies.sql
-│   │   └── 0003_seed_data.sql
-│   └── seed.sql
-├── public/
-│   ├── logo.svg
-│   ├── favicon.ico
-│   ├── illustrations/
-│   └── documents/                   # PDF statiques (mentions légales…)
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                 # Accueil
-│   │   ├── globals.css
-│   │   ├── (site)/                  # Groupe de routes publiques
-│   │   │   ├── actualites/
-│   │   │   │   ├── page.tsx
-│   │   │   │   └── [slug]/page.tsx
-│   │   │   ├── ccjp/
-│   │   │   │   ├── page.tsx         # Missions & organisation
-│   │   │   │   ├── bureau/page.tsx
-│   │   │   │   └── commissions/
-│   │   │   │       ├── page.tsx
-│   │   │   │       └── [slug]/page.tsx
-│   │   │   ├── activites/
-│   │   │   │   ├── page.tsx
-│   │   │   │   └── [slug]/page.tsx
-│   │   │   ├── agenda/page.tsx
-│   │   │   ├── ressources/page.tsx
-│   │   │   ├── galerie/page.tsx
-│   │   │   ├── contact/page.tsx
-│   │   │   ├── proposer/page.tsx
-│   │   │   └── recherche/page.tsx
-│   │   ├── admin/
-│   │   │   ├── layout.tsx           # sidebar + garde de session
-│   │   │   ├── page.tsx             # tableau de bord
-│   │   │   ├── connexion/page.tsx
-│   │   │   ├── actualites/page.tsx
-│   │   │   ├── actualites/nouveau/page.tsx
-│   │   │   ├── actualites/[id]/page.tsx
-│   │   │   ├── activites/...
-│   │   │   ├── agenda/...
-│   │   │   ├── commissions/...
-│   │   │   ├── membres/...
-│   │   │   ├── documents/...
-│   │   │   ├── galerie/...
-│   │   │   ├── messages/...
-│   │   │   └── parametres/page.tsx
-│   │   ├── api/
-│   │   │   ├── revalidate/route.ts
-│   │   │   └── upload/route.ts
-│   │   ├── sitemap.ts
-│   │   ├── robots.ts
-│   │   ├── mentions-legales/page.tsx
-│   │   └── confidentialite/page.tsx
-│   ├── components/
-│   │   ├── ui/                      # shadcn/ui
-│   │   ├── site/                    # Header, Footer, Hero, NewsCard…
-│   │   ├── admin/                   # AdminShell, DataTable, ImageUpload…
-│   │   └── shared/                  # Badge, Stat, EmptyState…
-│   ├── lib/
-│   │   ├── supabase/
-│   │   │   ├── client.ts            # client navigateur
-│   │   │   ├── server.ts            # client serveur (cookies)
-│   │   │   └── admin.ts             # client service_role (serveur only)
-│   │   ├── types.ts                 # types générés
-│   │   ├── constants.ts
-│   │   ├── utils.ts                 # cn(), formatDateFr(), slugify()
-│   │   └── validations.ts           # schémas Zod
-│   ├── actions/                     # Server Actions
-│   │   ├── posts.ts
-│   │   ├── activities.ts
-│   │   ├── commissions.ts
-│   │   ├── members.ts
-│   │   ├── documents.ts
-│   │   ├── media.ts
-│   │   ├── messages.ts
-│   │   ├── settings.ts
-│   │   └── auth.ts
-│   └── middleware-helpers.ts
-└── tests/
-    ├── e2e/                         # Playwright
-    └── unit/
+ccjp-podor/
+├── app/
+│   ├── (public)/                          # Routes publiques
+│   │   ├── page.tsx                       # Accueil
+│   │   ├── a-propos/page.tsx              # À propos du CCJP
+│   │   ├── commissions/
+│   │   │   ├── page.tsx                   # Liste des 14 commissions
+│   │   │   └── [slug]/page.tsx            # Détail d'une commission
+│   │   ├── actualites/
+│   │   │   ├── page.tsx                   # Liste des actualités
+│   │   │   └── [slug]/page.tsx            # Article complet
+│   │   ├── evenements/
+│   │   │   ├── page.tsx                   # Calendrier événements
+│   │   │   └── [id]/page.tsx              # Détail événement
+│   │   ├── programme/page.tsx             # Programme Triennal 2026-2029
+│   │   ├── bureau-executif/page.tsx       # Membres du Bureau
+│   │   ├── contact/page.tsx               # Formulaire de contact
+│   │   └── rejoindre/page.tsx             # Formulaire d'adhésion
+│   │
+│   ├── (admin)/admin/                     # Routes protégées
+│   │   ├── layout.tsx                     # Layout + sidebar
+│   │   ├── page.tsx                       # Dashboard
+│   │   ├── actualites/page.tsx            # Liste + CRUD
+│   │   ├── actualites/nouveau/page.tsx    # Création
+│   │   ├── actualites/[id]/page.tsx       # Édition
+│   │   ├── evenements/...                 # idem
+│   │   ├── commissions/page.tsx           # Gestion + projets phares
+│   │   ├── membres/page.tsx               # Bureau Exécutif
+│   │   ├── adhesions/page.tsx             # Demandes d'adhésion
+│   │   ├── messages/page.tsx              # Messages de contact
+│   │   ├── media/page.tsx                 # Médiathèque
+│   │   └── parametres/page.tsx            # Configuration du site
+│   │
+│   ├── auth/login/page.tsx                # Connexion admin
+│   ├── api/revalidate/route.ts            # Revalidation webhook
+│   ├── sitemap.ts                         # Sitemap XML
+│   ├── robots.ts                          # robots.txt
+│   └── globals.css
+│
+├── components/
+│   ├── layout/                            # Navbar, Footer, AdminSidebar
+│   ├── sections/                          # Sections de la homepage
+│   ├── ui/                                # Button, Card, Badge, Modal, Toast
+│   └── admin/                             # DataTable, ImageUpload, RichEditor
+│
+├── lib/
+│   ├── supabase/client.ts                 # Client navigateur
+│   ├── supabase/server.ts                 # Client serveur (cookies)
+│   ├── supabase/admin.ts                  # Client service_role (serveur only)
+│   ├── constants.ts                       # Données des 14 commissions
+│   └── utils.ts                           # cn(), formatDateFr(), slugify()
+│
+├── types/index.ts                         # Types générés Supabase
+├── middleware.ts                          # Protection des routes /admin
+├── supabase/migrations/                   # Migrations SQL
+├── scripts/seed.ts                        # Seed des 14 commissions
+└── .env.local
 ```
 
 ---
 
-## 4. Modèle de données Supabase
+## 6. Modèle de données Supabase
 
-### 4.1 Diagramme entité-association
+### 6.1 Vue d'ensemble
 
 ```mermaid
 erDiagram
-    commissions ||--o{ members        : "regroupe"
-    commissions ||--o{ activities     : "pilote"
-    commissions ||--o{ posts          : "peut-etre-auteur"
-    profiles    }o--|| commissions    : "responsable de"
-    categories  ||--o{ posts          : "classe"
-    activities  ||--o{ media          : "illustre"
-    activities  ||--o{ documents      : "archive"
-    posts       ||--o{ media          : "illustre"
+    commissions      ||--o{ membres_bureau : "est liee a"
+    commissions      ||--o{ actualites     : "concerne"
+    commissions      ||--o{ projets_phares : "porte"
+    commissions      ||--o{ adhesions      : "choisit"
+    commissions      ||--o{ medias         : "classe"
+    evenements       ||--o{ medias         : "illustre"
 
-    commissions {
-        uuid id PK
-        text name
-        text slug UK
-        text description
-        text mission
-        text icon
-        text color
-        int sort_order
-        bool is_active
-    }
-    profiles {
-        uuid id PK_FK
-        text full_name
-        text email
-        user_role role
-        uuid commission_id FK
-        bool is_active
-    }
-    members {
-        uuid id PK
-        text full_name
-        text function_title
-        uuid commission_id FK
-        text commune
-        text photo_url
-        text bio
-        date mandate_start
-        date mandate_end
-        int sort_order
-        bool is_published
-    }
-    categories {
-        uuid id PK
-        text name
-        text slug UK
-        text scope
-        text color
-    }
-    posts {
-        uuid id PK
-        text title
-        text slug UK
-        text excerpt
-        text content
-        uuid category_id FK
-        uuid commission_id FK
-        uuid author_id FK
-        post_status status
-        timestamptz published_at
-        bool is_featured
-        int views
-    }
-    activities {
-        uuid id PK
-        text title
-        text slug UK
-        uuid commission_id FK
-        activity_type type
-        date activity_date
-        text location
-        text commune
-        int participants_count
-        text report_url
-        text summary
-        text content
-        bool is_published
-    }
-    events {
-        uuid id PK
-        text title
-        text slug UK
-        text description
-        timestamptz start_at
-        timestamptz end_at
-        text location
-        text event_type
-        bool is_published
-    }
-    documents {
-        uuid id PK
-        text title
-        text description
-        document_category category
-        text file_url
-        int file_size
-        date document_date
-        bool is_public
-    }
-    media {
-        uuid id PK
-        text url
-        text caption
-        text album
-        uuid post_id FK
-        uuid activity_id FK
-    }
-    messages {
-        uuid id PK
-        text sender_name
-        text sender_email
-        text sender_phone
-        text commune
-        text subject
-        text body
-        message_status status
-        text response
-    }
-    newsletter_subscribers {
-        uuid id PK
-        text email UK
-        bool is_confirmed
-    }
-    site_settings {
-        text key PK
-        jsonb value
-    }
+    commissions      { uuid id PK  int numero  text slug  text nom  text vision  text[] axes  text couleur }
+    membres_bureau   { uuid id PK  text prenom  text nom  text poste  uuid commission_id FK  int ordre }
+    actualites       { uuid id PK  text titre  text slug  uuid commission_id FK  enum statut  bool epingle }
+    evenements       { uuid id PK  text titre  text slug  timestamptz date_debut  enum statut }
+    projets_phares   { uuid id PK  uuid commission_id FK  text titre  int annee  enum statut }
+    adhesions        { uuid id PK  text prenom  text nom  text email  uuid commission_id FK  enum statut }
+    contacts         { uuid id PK  text nom  text email  text sujet  bool lu }
+    medias           { uuid id PK  text nom  text url  enum type  uuid commission_id FK }
+    statistiques_indicateurs { uuid id PK  text libelle  text valeur  bool actif }
+    parametres       { text cle PK  text valeur }
+    admins           { uuid id PK  uuid user_id FK  bool actif }
 ```
 
-### 4.2 Dictionnaire des tables
-
-| Table | Rôle | Visibilité publique |
-|---|---|---|
-| `commissions` | Commissions du CCJP | Oui (si `is_active`) |
-| `profiles` | Comptes d'administration | Non |
-| `members` | Bureau et conseillers | Oui (si `is_published`) |
-| `categories` | Thématiques des actualités | Oui |
-| `posts` | Actualités, communiqués, notes | Oui (si `status='publie'`) |
-| `activities` | Activités du Conseil et des commissions | Oui (si `is_published`) |
-| `events` | Agenda | Oui (si `is_published`) |
-| `documents` | PV, statuts, rapports | Oui (si `is_public`) |
-| `media` | Photos de galerie | Oui |
-| `messages` | Messages et propositions reçus | Non |
-| `newsletter_subscribers` | Inscrits à la lettre d'information | Non |
-| `site_settings` | Paramètres éditables du site | Oui (lecture seule, valeurs non sensibles) |
-
-### 4.3 Schéma SQL complet
+### 6.2 Migration 0001 — Schéma initial
 
 ```sql
 -- =====================================================================
--- CCJP — Plateforme du Conseil Consultatif de la Jeunesse de Podor
--- Migration 0001 : schéma initial
+-- CCJP — Plateforme Numérique Officielle
+-- Migration 0001 : schéma initial (10 tables du CDC + 1 table admins)
 -- =====================================================================
 
 create extension if not exists "uuid-ossp";
 create extension if not exists "pg_trgm";   -- recherche tolérante aux fautes
 
 -- ---------- Types énumérés -------------------------------------------
-create type user_role as enum
-  ('admin', 'editeur', 'responsable_commission', 'lecteur');
+create type actualite_statut as enum ('brouillon', 'publie');
+create type evenement_statut as enum ('a_venir', 'termine', 'annule');
+create type projet_statut    as enum ('planifie', 'en_cours', 'realise');
+create type adhesion_statut  as enum ('en_attente', 'accepte', 'refuse');
+create type media_type       as enum ('image', 'video', 'document');
 
-create type post_status as enum ('brouillon', 'publie', 'archive');
-
-create type activity_type as enum (
-  'reunion_commission',
-  'seance_pleniere',
-  'formation',
-  'sensibilisation',
-  'projet_terrain',
-  'rencontre_partenaire',
-  'conference',
-  'mission',
-  'autre'
-);
-
-create type message_status as enum ('nouveau', 'lu', 'traite', 'archive');
-
-create type document_category as enum (
-  'statuts_reglement',
-  'proces_verbal',
-  'rapport_activite',
-  'communique',
-  'note_de_reflexion',
-  'formation',
-  'autre'
-);
-
--- ---------- 1. Commissions -------------------------------------------
+-- =====================================================================
+-- TABLE 1 — commissions
+-- =====================================================================
 create table public.commissions (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  slug        text not null unique,
-  description text,
-  mission     text,
-  icon        text,                       -- nom d'icône lucide
-  color       text default '#0C4A6E',
-  sort_order  int  not null default 0,
-  is_active   boolean not null default true,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  id                uuid primary key default gen_random_uuid(),
+  numero            int  not null unique check (numero between 1 and 14),
+  slug              text not null unique,
+  nom               text not null,
+  description       text,
+  vision            text,
+  axes_strategiques text[] not null default '{}',
+  couleur           text not null default '#1B5E20',
+  icone             text,                        -- nom d'icône lucide
+  ordre             int  not null default 0,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
 );
 
--- ---------- 2. Profils (liés à auth.users) ---------------------------
-create table public.profiles (
-  id            uuid primary key references auth.users(id) on delete cascade,
-  full_name     text not null,
-  email         text not null,
-  role          user_role not null default 'lecteur',
-  commission_id uuid references public.commissions(id) on delete set null,
-  phone         text,
-  avatar_url    text,
-  is_active     boolean not null default true,
-  last_login_at timestamptz,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
-);
-
-create index profiles_role_idx on public.profiles(role);
-
--- ---------- 3. Membres (bureau & conseillers) ------------------------
-create table public.members (
+-- =====================================================================
+-- TABLE 2 — membres_bureau
+-- =====================================================================
+create table public.membres_bureau (
   id             uuid primary key default gen_random_uuid(),
-  full_name      text not null,
-  function_title text not null,             -- ex. « Président », « Rapporteur »
+  prenom         text not null,
+  nom            text not null,
+  poste          text not null,                  -- ex. « Président »
   commission_id  uuid references public.commissions(id) on delete set null,
-  commune        text,                      -- Podor, Ndioum, Aéré Lao…
+  biographie     text,
   photo_url      text,
-  bio            text,
-  mandate_start  date,
-  mandate_end    date,
   email          text,
-  phone          text,
-  sort_order     int  not null default 0,
-  is_published   boolean not null default true,
+  telephone      text,
+  ordre          int  not null default 0,        -- ordre d'affichage
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
 
-create index members_commission_idx on public.members(commission_id);
+create index membres_bureau_ordre_idx      on public.membres_bureau(ordre);
+create index membres_bureau_commission_idx on public.membres_bureau(commission_id);
 
--- ---------- 4. Catégories -------------------------------------------
-create table public.categories (
+-- =====================================================================
+-- TABLE 3 — actualites
+-- =====================================================================
+create table public.actualites (
+  id               uuid primary key default gen_random_uuid(),
+  titre            text not null,
+  slug             text not null unique,
+  extrait          text,
+  contenu          text,                         -- HTML de l'éditeur riche
+  image_url        text,
+  commission_id    uuid references public.commissions(id) on delete set null,
+  auteur_id        uuid references auth.users(id) on delete set null,
+  statut           actualite_statut not null default 'brouillon',
+  epingle          boolean not null default false,
+  tags             text[] not null default '{}',
+  date_publication timestamptz,
+  vues             int not null default 0,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+create index actualites_statut_idx on public.actualites(statut, date_publication desc);
+create index actualites_epingle_idx on public.actualites(epingle) where epingle;
+create index actualites_tags_idx   on public.actualites using gin (tags);
+
+-- =====================================================================
+-- TABLE 4 — evenements
+-- =====================================================================
+create table public.evenements (
+  id               uuid primary key default gen_random_uuid(),
+  titre            text not null,
+  slug             text not null unique,
+  description      text,
+  lieu             text,
+  date_debut       timestamptz not null,
+  date_fin         timestamptz,
+  type_evenement   text,                         -- 'reunion','formation','ceremonie'…
+  lien_inscription text,
+  image_url        text,
+  statut           evenement_statut not null default 'a_venir',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+create index evenements_date_idx  on public.evenements(date_debut);
+create index evenements_statut_idx on public.evenements(statut, date_debut);
+
+-- =====================================================================
+-- TABLE 5 — projets_phares
+-- =====================================================================
+create table public.projets_phares (
+  id             uuid primary key default gen_random_uuid(),
+  commission_id  uuid not null references public.commissions(id) on delete cascade,
+  titre          text not null,
+  description    text,
+  annee          int,                            -- 2026, 2027, 2028 ou 2029
+  statut         projet_statut not null default 'planifie',
+  ordre          int not null default 0,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+create index projets_commission_idx on public.projets_phares(commission_id, ordre);
+
+-- =====================================================================
+-- TABLE 6 — adhesions
+-- =====================================================================
+create table public.adhesions (
+  id             uuid primary key default gen_random_uuid(),
+  prenom         text not null,
+  nom            text not null,
+  email          text not null,
+  telephone      text,
+  quartier       text,                           -- quartier de la commune de Podor
+  commission_id  uuid references public.commissions(id) on delete set null,
+  motivation     text,
+  statut         adhesion_statut not null default 'en_attente',
+  created_at     timestamptz not null default now()
+);
+
+create index adhesions_statut_idx on public.adhesions(statut, created_at desc);
+
+-- =====================================================================
+-- TABLE 7 — contacts
+-- =====================================================================
+create table public.contacts (
   id         uuid primary key default gen_random_uuid(),
-  name       text not null,
-  slug       text not null unique,
-  scope      text not null default 'post',   -- 'post' | 'document' | 'event'
-  color      text default '#0C4A6E',
+  nom        text not null,
+  email      text not null,
+  sujet      text not null,
+  message    text not null,
+  lu         boolean not null default false,
   created_at timestamptz not null default now()
 );
 
--- ---------- Recherche plein texte ------------------------------------
--- PIEGE TECHNIQUE A CONNAITRE :
---   * to_tsvector(regconfig, text)  -> IMMUTABLE  -> utilisable dans un index
---   * to_tsvector(text)             -> STABLE     -> erreur « functions in
+create index contacts_lu_idx on public.contacts(lu, created_at desc);
+
+-- =====================================================================
+-- TABLE 8 — medias
+-- =====================================================================
+create table public.medias (
+  id            uuid primary key default gen_random_uuid(),
+  nom           text not null,
+  url           text not null,
+  type          media_type not null default 'image',
+  taille        bigint,                          -- octets
+  commission_id uuid references public.commissions(id) on delete set null,
+  evenement_id  uuid references public.evenements(id) on delete cascade,
+  created_at    timestamptz not null default now()
+);
+
+create index medias_commission_idx on public.medias(commission_id);
+create index medias_evenement_idx   on public.medias(evenement_id);
+
+-- =====================================================================
+-- TABLE 9 — statistiques_indicateurs
+-- =====================================================================
+create table public.statistiques_indicateurs (
+  id         uuid primary key default gen_random_uuid(),
+  libelle    text not null,                      -- ex. « Jeunes formés »
+  valeur     text not null,                      -- ex. « 1 000+ »
+  unite      text,
+  icone      text,
+  ordre      int  not null default 0,
+  actif      boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index statistiques_ordre_idx on public.statistiques_indicateurs(ordre) where actif;
+
+-- =====================================================================
+-- TABLE 10 — parametres
+-- =====================================================================
+create table public.parametres (
+  cle         text primary key,
+  valeur      text not null,
+  description text,
+  updated_at  timestamptz not null default now()
+);
+
+-- =====================================================================
+-- TABLE 11 — admins  (AJOUT DE SÉCURITÉ — voir §18.1)
+-- Placée ici car elle est référencée par la fonction is_admin().
+-- =====================================================================
+create table public.admins (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null unique references auth.users(id) on delete cascade,
+  email      text not null,
+  nom        text,
+  actif      boolean not null default true,
+  created_at timestamptz not null default now()
+);
+```
+
+### 6.3 Recherche plein texte (ajout)
+
+```sql
+-- =====================================================================
+-- Recherche plein texte sur les actualités
+-- PIÈGE TECHNIQUE :
+--   * to_tsvector(regconfig, text) -> IMMUTABLE -> utilisable dans un index
+--   * to_tsvector(text)            -> STABLE    -> erreur « functions in
 --     index expression must be marked IMMUTABLE »
---   * coalesce(text, text)          -> STABLE     -> meme erreur
--- On enveloppe donc l'expression dans une fonction declaree IMMUTABLE.
-create or replace function public.posts_search_vector(p_title text, p_excerpt text)
+--   * coalesce(text, text)         -> STABLE    -> même erreur
+-- On enveloppe donc l'expression dans une fonction déclarée IMMUTABLE.
+-- =====================================================================
+create or replace function public.actualites_search_vector(p_titre text, p_extrait text)
 returns tsvector
 language sql
 immutable
@@ -579,154 +621,26 @@ parallel safe
 set search_path = public
 as $$
   select to_tsvector('french',
-                     coalesce(p_title, '') || ' ' || coalesce(p_excerpt, ''));
+                     coalesce(p_titre, '') || ' ' || coalesce(p_extrait, ''));
 $$;
 
--- Requete de recherche correspondante (a utiliser dans src/actions/posts.ts) :
+create index actualites_search_idx on public.actualites
+  using gin (public.actualites_search_vector(titre, extrait));
+
+-- Requête correspondante (src/app/(public)/recherche ou /actualites) :
 --   select *
---   from public.posts
---   where public.posts_search_vector(title, excerpt)
---         @@ websearch_to_tsquery('french', :terme)
---   order by ts_rank(public.posts_search_vector(title, excerpt),
---                    websearch_to_tsquery('french', :terme)) desc;
+--   from public.actualites
+--   where statut = 'publie'
+--     and public.actualites_search_vector(titre, extrait)
+--         @@ websearch_to_tsquery('french', :terme);
+```
 
--- ---------- 5. Actualités -------------------------------------------
-create table public.posts (
-  id             uuid primary key default gen_random_uuid(),
-  title          text not null,
-  slug           text not null unique,
-  excerpt        text,
-  content        text,                        -- HTML issu de l'éditeur
-  cover_image    text,
-  category_id    uuid references public.categories(id) on delete set null,
-  commission_id  uuid references public.commissions(id) on delete set null,
-  author_id      uuid references public.profiles(id) on delete set null,
-  status         post_status not null default 'brouillon',
-  is_featured    boolean not null default false,
-  published_at   timestamptz,
-  views          int not null default 0,
-  created_at     timestamptz not null default now(),
-  updated_at     timestamptz not null default now()
-);
+### 6.4 Triggers
 
-create index posts_status_idx    on public.posts(status, published_at desc);
-create index posts_featured_idx  on public.posts(is_featured) where is_featured;
--- Index de recherche plein texte : s'appuie sur la fonction dédiée
--- déclarée IMMUTABLE plus haut (voir section « Recherche plein texte »).
-create index posts_search_idx on public.posts
-  using gin (public.posts_search_vector(title, excerpt));
-
--- ---------- 6. Activités --------------------------------------------
-create table public.activities (
-  id                uuid primary key default gen_random_uuid(),
-  title             text not null,
-  slug              text not null unique,
-  commission_id     uuid references public.commissions(id) on delete set null,
-  type              activity_type not null default 'autre',
-  activity_date     date not null,
-  end_date          date,
-  location          text,
-  commune           text,
-  participants_count int,
-  budget            numeric(12,2),
-  summary           text,
-  content           text,                     -- compte rendu détaillé
-  report_url        text,                     -- PDF du compte rendu
-  cover_image       text,
-  is_published      boolean not null default false,
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now()
-);
-
-create index activities_commission_idx on public.activities(commission_id);
-create index activities_date_idx       on public.activities(activity_date desc);
-create index activities_type_idx       on public.activities(type);
-
--- ---------- 7. Agenda ------------------------------------------------
-create table public.events (
-  id           uuid primary key default gen_random_uuid(),
-  title        text not null,
-  slug         text not null unique,
-  description  text,
-  start_at     timestamptz not null,
-  end_at       timestamptz,
-  location     text,
-  event_type   text,                          -- 'reunion', 'formation', 'ceremonie'…
-  cover_image  text,
-  is_published boolean not null default true,
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
-);
-
-create index events_start_idx on public.events(start_at);
-
--- ---------- 8. Documents ---------------------------------------------
-create table public.documents (
-  id            uuid primary key default gen_random_uuid(),
-  title         text not null,
-  description   text,
-  category      document_category not null default 'autre',
-  file_url      text not null,
-  file_size     int,                          -- octets
-  file_type     text default 'application/pdf',
-  document_date date,
-  activity_id   uuid references public.activities(id) on delete set null,
-  is_public     boolean not null default true,
-  downloads     int not null default 0,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
-);
-
-create index documents_category_idx on public.documents(category, document_date desc);
-
--- ---------- 9. Médias ------------------------------------------------
-create table public.media (
-  id           uuid primary key default gen_random_uuid(),
-  url          text not null,
-  caption      text,
-  album        text,
-  post_id      uuid references public.posts(id) on delete cascade,
-  activity_id  uuid references public.activities(id) on delete cascade,
-  sort_order   int not null default 0,
-  created_at   timestamptz not null default now()
-);
-
--- ---------- 10. Messages & propositions ------------------------------
-create table public.messages (
-  id           uuid primary key default gen_random_uuid(),
-  sender_name  text not null,
-  sender_email text not null,
-  sender_phone text,
-  commune      text,
-  subject      text not null,
-  body         text not null,
-  kind         text not null default 'contact',  -- 'contact' | 'proposition'
-  status       message_status not null default 'nouveau',
-  response     text,
-  responded_at timestamptz,
-  created_at   timestamptz not null default now()
-);
-
-create index messages_status_idx on public.messages(status, created_at desc);
-
--- ---------- 11. Newsletter -------------------------------------------
-create table public.newsletter_subscribers (
-  id           uuid primary key default gen_random_uuid(),
-  email        text not null unique,
-  is_confirmed boolean not null default false,
-  created_at   timestamptz not null default now()
-);
-
--- ---------- 12. Paramètres du site -----------------------------------
-create table public.site_settings (
-  key         text primary key,
-  value       jsonb not null default '{}'::jsonb,
-  label       text,
-  updated_at  timestamptz not null default now()
-);
-
-
--- ---------- Trigger updated_at ---------------------------------------
+```sql
+-- =====================================================================
+-- Trigger : mise à jour automatique de updated_at
+-- =====================================================================
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -739,51 +653,30 @@ $$;
 
 create trigger commissions_set_updated_at before update on public.commissions
   for each row execute function public.set_updated_at();
-create trigger profiles_set_updated_at    before update on public.profiles
+create trigger membres_bureau_set_updated_at before update on public.membres_bureau
   for each row execute function public.set_updated_at();
-create trigger members_set_updated_at     before update on public.members
+create trigger actualites_set_updated_at before update on public.actualites
   for each row execute function public.set_updated_at();
-create trigger posts_set_updated_at       before update on public.posts
+create trigger evenements_set_updated_at before update on public.evenements
   for each row execute function public.set_updated_at();
-create trigger activities_set_updated_at  before update on public.activities
+create trigger projets_phares_set_updated_at before update on public.projets_phares
   for each row execute function public.set_updated_at();
-create trigger events_set_updated_at      before update on public.events
+create trigger parametres_set_updated_at before update on public.parametres
   for each row execute function public.set_updated_at();
-create trigger documents_set_updated_at   before update on public.documents
-  for each row execute function public.set_updated_at();
-
--- ---------- Création automatique du profil ---------------------------
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  insert into public.profiles (id, full_name, email, role)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', 'Utilisateur'),
-    new.email,
-    'lecteur'
-  );
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
 ```
 
-### 4.4 Fonctions d'habilitation et Row Level Security
+### 6.5 Migration 0002 — Sécurité au niveau des lignes (RLS)
+
+> **À appliquer immédiatement après la migration 0001.**
+> Le détail de la faille corrigée et la procédure de création du premier
+> administrateur sont en [§7.1](#71-️-correction-de-sécurité-obligatoire).
 
 ```sql
 -- =====================================================================
 -- Migration 0002 : sécurité au niveau des lignes (RLS)
 -- =====================================================================
 
--- ---------- Fonctions d'habilitation ---------------------------------
+-- ---------- Fonction d'habilitation -----------------------------------
 -- security definer + search_path figé : évite les attaques par
 -- détournement de search_path et les récursions de politiques.
 create or replace function public.is_admin()
@@ -794,322 +687,340 @@ stable
 set search_path = public
 as $$
   select exists (
-    select 1 from public.profiles
-    where id = auth.uid()
-      and is_active
-      and role = 'admin'
+    select 1 from public.admins
+    where user_id = auth.uid()
+      and actif
   );
 $$;
 
-create or replace function public.is_staff()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.profiles
-    where id = auth.uid()
-      and is_active
-      and role in ('admin', 'editeur', 'responsable_commission')
-  );
-$$;
-
--- Un responsable de commission ne peut écrire que sur SA commission.
-create or replace function public.can_manage_commission(target uuid)
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select
-    public.is_admin()
-    or exists (
-      select 1 from public.profiles
-      where id = auth.uid()
-        and is_active
-        and role = 'responsable_commission'
-        and commission_id = target
-    );
-$$;
-
--- ---------- Activation RLS sur toutes les tables ----------------------
-alter table public.commissions           enable row level security;
-alter table public.profiles              enable row level security;
-alter table public.members               enable row level security;
-alter table public.categories            enable row level security;
-alter table public.posts                 enable row level security;
-alter table public.activities            enable row level security;
-alter table public.events                enable row level security;
-alter table public.documents             enable row level security;
-alter table public.media                 enable row level security;
-alter table public.messages              enable row level security;
-alter table public.newsletter_subscribers enable row level security;
-alter table public.site_settings         enable row level security;
+-- ---------- Activation RLS sur toutes les tables -----------------------
+alter table public.commissions            enable row level security;
+alter table public.membres_bureau         enable row level security;
+alter table public.actualites             enable row level security;
+alter table public.evenements             enable row level security;
+alter table public.projets_phares         enable row level security;
+alter table public.adhesions              enable row level security;
+alter table public.contacts               enable row level security;
+alter table public.medias                 enable row level security;
+alter table public.statistiques_indicateurs enable row level security;
+alter table public.parametres             enable row level security;
+alter table public.admins                 enable row level security;
 
 -- =====================================================================
--- Politiques : LECTURE PUBLIQUE
+-- LECTURE PUBLIQUE
 -- =====================================================================
-create policy "Commissions visibles publiquement"
-  on public.commissions for select
-  using (is_active);
+create policy "Commissions lisibles publiquement"
+  on public.commissions for select using (true);
 
-create policy "Membres publiés visibles publiquement"
-  on public.members for select
-  using (is_published);
+create policy "Membres du bureau lisibles publiquement"
+  on public.membres_bureau for select using (true);
 
-create policy "Catégories visibles publiquement"
-  on public.categories for select
-  using (true);
+-- Seules les actualités publiées sont visibles du public.
+create policy "Actualités publiées lisibles publiquement"
+  on public.actualites for select using (statut = 'publie');
 
-create policy "Actualités publiées visibles publiquement"
-  on public.posts for select
-  using (status = 'publie' and published_at is not null and published_at <= now());
+create policy "Événements lisibles publiquement"
+  on public.evenements for select using (true);
 
-create policy "Activités publiées visibles publiquement"
-  on public.activities for select
-  using (is_published);
+create policy "Projets phares lisibles publiquement"
+  on public.projets_phares for select using (true);
 
-create policy "Événements publiés visibles publiquement"
-  on public.events for select
-  using (is_published);
+create policy "Médias lisibles publiquement"
+  on public.medias for select using (true);
 
-create policy "Documents publics visibles publiquement"
-  on public.documents for select
-  using (is_public);
+create policy "Indicateurs actifs lisibles publiquement"
+  on public.statistiques_indicateurs for select using (actif);
 
-create policy "Médias visibles publiquement"
-  on public.media for select
-  using (true);
-
-create policy "Paramètres non sensibles visibles publiquement"
-  on public.site_settings for select
-  using (key not like '%secret%' and key not like '%token%');
+-- Les paramètres non sensibles sont lisibles par le site public.
+create policy "Paramètres non sensibles lisibles publiquement"
+  on public.parametres for select
+  using (cle not like '%secret%' and cle not like '%token%' and cle not like '%password%');
 
 -- =====================================================================
--- Politiques : ÉCRITURE (réservée à l'équipe)
+-- ÉCRITURE — réservée aux administrateurs habilités
 -- =====================================================================
-create policy "Staff gère les commissions"
+create policy "Admins gèrent les commissions"
   on public.commissions for all
-  using (public.is_staff()) with check (public.is_staff());
-
-create policy "Admin gère les profils"
-  on public.profiles for all
   using (public.is_admin()) with check (public.is_admin());
 
-create policy "Chacun lit son propre profil"
-  on public.profiles for select
-  using (id = auth.uid());
+create policy "Admins gèrent les membres du bureau"
+  on public.membres_bureau for all
+  using (public.is_admin()) with check (public.is_admin());
 
-create policy "Staff gère les membres"
-  on public.members for all
-  using (public.is_staff()) with check (public.is_staff());
+create policy "Admins gèrent les actualités"
+  on public.actualites for all
+  using (public.is_admin()) with check (public.is_admin());
 
-create policy "Staff gère les catégories"
-  on public.categories for all
-  using (public.is_staff()) with check (public.is_staff());
+create policy "Admins gèrent les événements"
+  on public.evenements for all
+  using (public.is_admin()) with check (public.is_admin());
 
-create policy "Staff gère les actualités"
-  on public.posts for all
-  using (public.is_staff()) with check (public.is_staff());
+create policy "Admins gèrent les projets phares"
+  on public.projets_phares for all
+  using (public.is_admin()) with check (public.is_admin());
 
-create policy "Staff gère les activités"
-  on public.activities for all
-  using (public.can_manage_commission(commission_id))
-  with check (public.can_manage_commission(commission_id));
+create policy "Admins gèrent les médias"
+  on public.medias for all
+  using (public.is_admin()) with check (public.is_admin());
 
-create policy "Staff gère l'agenda"
-  on public.events for all
-  using (public.is_staff()) with check (public.is_staff());
+create policy "Admins gèrent les indicateurs"
+  on public.statistiques_indicateurs for all
+  using (public.is_admin()) with check (public.is_admin());
 
-create policy "Staff gère les documents"
-  on public.documents for all
-  using (public.is_staff()) with check (public.is_staff());
-
-create policy "Staff gère les médias"
-  on public.media for all
-  using (public.is_staff()) with check (public.is_staff());
-
-create policy "Admin lit les messages"
-  on public.messages for select
-  using (public.is_staff());
-
-create policy "Admin répond aux messages"
-  on public.messages for update
-  using (public.is_staff()) with check (public.is_staff());
+create policy "Admins gèrent les paramètres"
+  on public.parametres for all
+  using (public.is_admin()) with check (public.is_admin());
 
 -- =====================================================================
--- Politiques : INSERTION PUBLIQUE (formulaires)
--- Le public ne peut QUE créer, jamais lire ni modifier.
+-- ADHÉSIONS ET MESSAGES
+-- Le public peut CRÉER, jamais lire ni modifier.
 -- =====================================================================
+create policy "Admins lisent les adhésions"
+  on public.adhesions for select using (public.is_admin());
+
+create policy "Admins traitent les adhésions"
+  on public.adhesions for update
+  using (public.is_admin()) with check (public.is_admin());
+
+create policy "Le public peut soumettre une adhésion"
+  on public.adhesions for insert with check (true);
+
+create policy "Admins lisent les messages"
+  on public.contacts for select using (public.is_admin());
+
+create policy "Admins gèrent les messages"
+  on public.contacts for update
+  using (public.is_admin()) with check (public.is_admin());
+
 create policy "Le public peut envoyer un message"
-  on public.messages for insert
-  with check (true);
-
-create policy "Le public peut s'inscrire à la newsletter"
-  on public.newsletter_subscribers for insert
-  with check (true);
+  on public.contacts for insert with check (true);
 ```
 
-> **Note de sécurité.** Les politiques `for insert with check (true)` sont volontairement ouvertes pour permettre au public d'écrire. Elles sont compensées par :
-> 1. une **limitation de débit** côté Vercel Edge Middleware (voir §10.3) ;
-> 2. l'absence totale de politique `select`/`update`/`delete` publique sur ces tables ;
-> 3. une modération obligatoire dans le back-office.
-
-### 4.5 Stockage (buckets Supabase)
-
-| Bucket | Contenu | Public | Taille max | Types |
-|---|---|---|---|---|
-| `covers` | Images de une des actualités et activités | Oui | 5 Mo | JPEG, PNG, WebP, AVIF |
-| `gallery` | Photos d'activités et galerie | Oui | 5 Mo | JPEG, PNG, WebP, AVIF |
-| `documents` | PV, rapports, statuts | Oui (lectre seule) | 20 Mo | PDF, DOCX, XLSX |
-| `avatars` | Photos des membres et profils | Oui | 2 Mo | JPEG, PNG, WebP |
-| `branding` | Logo, visuels institutionnels | Oui | 2 Mo | SVG, PNG |
+### 6.6 Migration 0003 — Données d'amorçage (seed)
 
 ```sql
--- Politiques de stockage
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values
-  ('covers',    'covers',    true, 5242880, array['image/jpeg','image/png','image/webp','image/avif']),
-  ('gallery',   'gallery',   true, 5242880, array['image/jpeg','image/png','image/webp','image/avif']),
-  ('documents', 'documents', true, 20971520, array['application/pdf','application/msw-word','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']),
-  ('avatars',   'avatars',   true, 2097152, array['image/jpeg','image/png','image/webp']),
-  ('branding',  'branding',  true, 2097152, array['image/svg+xml','image/png']);
+-- =====================================================================
+-- Seed : les 14 commissions officielles du CCJP
+-- =====================================================================
+insert into public.commissions
+  (numero, slug, nom, description, vision, axes_strategiques, couleur, icone, ordre) values
 
-create policy "Lecture publique des couvertures"
-  on storage.objects for select using (bucket_id = 'covers');
-create policy "Staff dépose des couvertures"
-  on storage.objects for insert
-  with check (bucket_id = 'covers' and public.is_staff());
-create policy "Staff supprime des couvertures"
-  on storage.objects for delete
-  using (bucket_id = 'covers' and public.is_staff());
--- … même triptyque pour gallery / documents / avatars / branding
+(1, 'gouvernance-paix-securite',
+ 'Gouvernance, Paix & Sécurité',
+ 'Œuvre à la bonne gouvernance locale, à la prévention des conflits et à la sécurité des jeunes de Podor.',
+ 'Une jeunesse actrice de la paix et de la transparence dans la gestion des affaires locales.',
+ array['Gouvernance & Engagement Citoyen'],
+ '#1A3A5C', 'scale', 1),
+
+(2, 'communication-relations-publiques',
+ 'Communication & Relations Publiques',
+ 'Porte la parole du CCJP, produit l''information institutionnelle et anime les plateformes numériques officielles.',
+ 'Faire du CCJP une institution visible, crédible et proche de la jeunesse podoroise.',
+ array['Gouvernance & Engagement Citoyen'],
+ '#1B5E20', 'megaphone', 2),
+
+(3, 'emploi-entrepreneuriat',
+ 'Emploi & Entrepreneuriat',
+ 'Accompagne les jeunes vers l''emploi, l''auto-emploi et la création d''entreprise.',
+ 'Réduire le chômage des jeunes par l''employabilité et l''entrepreneuriat local.',
+ array['Emploi, Entrepreneuriat & Numérique'],
+ '#1A3A5C', 'briefcase', 3),
+
+(4, 'education-formation',
+ 'Éducation & Formation',
+ 'Agit sur la réussite scolaire, l''orientation et l''accès à la formation pour tous les jeunes de Podor.',
+ 'Aucun jeune de Podor ne doit quitter le système éducatif faute d''accompagnement.',
+ array['Éducation, Santé & Inclusion'],
+ '#7B3F00', 'graduation-cap', 4),
+
+(5, 'numerique-innovation',
+ 'Numérique & Innovation',
+ 'Développe les compétences numériques des jeunes et favorise l''innovation technologique locale.',
+ 'Faire de la jeunesse de Podor un acteur de la transformation digitale.',
+ array['Emploi, Entrepreneuriat & Numérique'],
+ '#1A3A5C', 'laptop', 5),
+
+(6, 'sante-bien-etre',
+ 'Santé & Bien-être',
+ 'Contribue à l''amélioration de la santé physique et mentale des jeunes et à la prévention.',
+ 'Une jeunesse en bonne santé, informée et responsable.',
+ array['Éducation, Santé & Inclusion'],
+ '#7B3F00', 'heart-pulse', 6),
+
+(7, 'genre-inclusion-equite',
+ 'Genre, Inclusion & Équité',
+ 'Œuvre à l''égalité des chances, à la participation des jeunes filles et à l''inclusion des personnes vulnérables.',
+ 'L''égalité de genre et l''inclusion comme conditions du développement de Podor.',
+ array['Éducation, Santé & Inclusion'],
+ '#7B3F00', 'users', 7),
+
+(8, 'environnement-developpement-durable',
+ 'Environnement & Développement Durable',
+ 'Porte les actions de protection de l''environnement, de reboisement et d''adaptation au changement climatique.',
+ 'Un Podor plus vert et résilient face aux défis climatiques.',
+ array['Environnement, Culture, Sport & Ouverture'],
+ '#1B5E20', 'leaf', 8),
+
+(9, 'diaspora-cooperation',
+ 'Diaspora & Coopération',
+ 'Mobilise la diaspora podoroise et structure les partenariats nationaux et internationaux.',
+ 'Une diaspora engagée comme levier de développement de Podor.',
+ array['Environnement, Culture, Sport & Ouverture'],
+ '#1B5E20', 'globe', 9),
+
+(10, 'citoyennete-vie-associative',
+ 'Citoyenneté & Vie Associative',
+ 'Renforce l''engagement citoyen des jeunes et soutient le tissu associatif de la commune.',
+ 'Une jeunesse engagée et un mouvement associatif dynamique.',
+ array['Gouvernance & Engagement Citoyen'],
+ '#1A3A5C', 'landmark', 10),
+
+(11, 'sports',
+ 'Sports',
+ 'Développe la pratique sportive et organise les compétitions locales.',
+ 'Le sport comme vecteur de cohésion, de discipline et de dépassement.',
+ array['Environnement, Culture, Sport & Ouverture'],
+ '#1B5E20', 'trophy', 11),
+
+(12, 'culture',
+ 'Culture',
+ 'Valorise le patrimoine culturel podorois et accompagne la création artistique des jeunes.',
+ 'Une culture vivante, fierté et moteur d''attractivité pour Podor.',
+ array['Environnement, Culture, Sport & Ouverture'],
+ '#1B5E20', 'palette', 12),
+
+(13, 'diagnostic-suivi-evaluation',
+ 'Diagnostic, Suivi & Évaluation',
+ 'Produit les données sur la jeunesse et évalue la mise en œuvre du programme du CCJP.',
+ 'Une décision publique éclairée par des données fiables sur la jeunesse.',
+ array['Pilotage, Patrimoine & Développement Territorial'],
+ '#1A3A5C', 'bar-chart-3', 13),
+
+(14, 'tourisme-patrimoine',
+ 'Tourisme & Patrimoine',
+ 'Fait connaître le patrimoine naturel, historique et culturel de Podor et promeut son attractivité.',
+ 'Faire de Podor une destination touristique portée par sa jeunesse.',
+ array['Pilotage, Patrimoine & Développement Territorial'],
+ '#1A3A5C', 'castle', 14);
+
+-- =====================================================================
+-- Seed : les 8 indicateurs d'impact à horizon 2029
+-- =====================================================================
+insert into public.statistiques_indicateurs (libelle, valeur, unite, icone, ordre) values
+('Élèves bénéficiaires des actions éducatives', '2 000', '+', 'school',   1),
+('Jeunes formés aux compétences numériques',   '1 000', '+', 'laptop',   2),
+('Arbres plantés pour un Podor plus vert',     '5 000', '+', 'trees',    3),
+('Participants aux compétitions sportives',    '6 000', '+', 'trophy',   4),
+('Projets entrepreneurs accompagnés',          '100',   '+', 'rocket',   5),
+('Associations recensées',                      '300',   '+', 'building', 6),
+('Partenariats nationaux et internationaux',    '20',    '+', 'handshake',7),
+('Commissions suivies et évaluées chaque année','14',    '',  'clipboard',8);
+
+-- =====================================================================
+-- Seed : paramètres du site
+-- =====================================================================
+insert into public.parametres (cle, valeur, description) values
+('site_nom',        'CCJP — Conseil Consultatif des Jeunes de Podor', 'Nom du site affiché partout'),
+('site_description','Plateforme officielle du Conseil Consultatif des Jeunes de Podor. Écoute · Participation · Impact.', 'Description pour le SEO'),
+('email_contact',   'contact@ccjp-podor.sn',                          'Email de contact public'),
+('telephone',       '',                                               'Téléphone (à compléter)'),
+('adresse',         'Podor, Région de Saint-Louis, Sénégal',          'Adresse postale'),
+('facebook_url',    '',                                               'URL page Facebook'),
+('instagram_url',   '',                                               'URL compte Instagram'),
+('x_url',           '',                                               'URL compte X (Twitter)'),
+('tiktok_url',      '',                                               'URL compte TikTok'),
+('hero_titre',      'La voix de la jeunesse podoroise',               'Titre du bandeau d''accueil'),
+('hero_sous_titre', 'Écoute · Participation · Impact',                'Sous-titre du bandeau d''accueil');
 ```
 
-### 4.6 Types TypeScript générés
+### 6.7 Types TypeScript
 
 ```bash
-# À exécuter après chaque migration (à intégrer dans package.json)
-npx supabase gen types typescript --project-id <id> > src/lib/types.ts
+# À exécuter après chaque migration, et à intégrer dans package.json
+npx supabase gen types typescript --project-id <id> --schema public > types/index.ts
 ```
 
 ```json
 {
   "scripts": {
-    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/lib/types.ts",
-    "db:diff": "supabase db diff -f",
-    "db:reset": "supabase db reset"
+    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > types/index.ts"
   }
 }
 ```
 
-### 4.7 Données d'amorçage (seed)
+---
+
+## 7. Sécurité, RLS et authentification
+
+### 7.1 ⚠️ Correction de sécurité obligatoire
+
+Le cahier des charges propose cette politique :
+
+```sql
+CREATE POLICY "Admin full access" ON actualites
+  FOR ALL USING (auth.role() = 'authenticated');
+```
+
+**Cette politique accorde un accès complet à la table à n'importe quel utilisateur
+authentifié.** Or Supabase Auth permet de créer autant d'utilisateurs qu'on veut :
+un simple visiteur qui parviendrait à créer un compte (ou tout utilisateur créé par
+erreur) aurait alors le droit de **modifier ou supprimer toutes les actualités du
+CCJP**. C'est une faille critique pour un site institutionnel.
+
+**Correction retenue** : une table `admins` listant nominativement les
+administrateurs habilités, et une fonction `is_admin()` utilisée par toutes les
+politiques.
 
 ```sql
 -- =====================================================================
--- Migration 0003 : données d'amorçage
--- ⚠ À COMPLÉTER avec les données réelles du CCJP (voir §2.4)
+-- TABLE ADMINS — auto-lecture uniquement, gestion par SQL
 -- =====================================================================
+create policy "Un admin voit sa propre ligne"
+  on public.admins for select using (user_id = auth.uid());
 
-insert into public.commissions (name, slug, description, mission, icon, color, sort_order) values
-  ('Communication, Information et Relations Publiques',
-   'communication-information',
-   'Faire connaître le CCJP, ses travaux et ses positions auprès de la jeunesse et du grand public.',
-   'Produire et diffuser l''information du Conseil ; animer les réseaux sociaux ; assurer la couverture médiatique des activités.',
-   'megaphone', '#0C4A6E', 1),
-  ('Éducation, Formation Professionnelle et Employabilité',
-   'education-formation-employabilite',
-   'Réfléchir aux solutions pour l''orientation, la formation et l''insertion professionnelle des jeunes de Podor.',
-   'Analyser l''offre de formation locale ; proposer des dispositifs d''apprentissage ; faciliter le lien avec les employeurs.',
-   'graduation-cap', '#B45309', 2),
-  ('Entrepreneuriat, Économie et Emploi des Jeunes',
-   'entrepreneuriat-economie-emploi',
-   'Promouvoir l''initiative économique des jeunes et l''accès au financement.',
-   'Recenser les initiatives locales ; sensibiliser au financement ; appuyer le montage de projets.',
-   'briefcase', '#15803D', 3),
-  ('Santé, Environnement et Cadre de Vie',
-   'sante-environnement-cadre-de-vie',
-   'Contribuer à l''amélioration de la santé des jeunes et à la protection de l''environnement dans le département.',
-   'Sensibiliser à la santé de la reproduction ; porter des actions de salubrité et de reboisement.',
-   'leaf', '#0F766E', 4),
-  ('Culture, Sport et Citoyenneté',
-   'culture-sport-citoynete',
-   'Valoriser la culture pulaar et wolof, promouvoir le sport et la citoyenneté active.',
-   'Organiser des activités culturelles et sportives ; promouvoir la paix et la cohésion sociale.',
-   'trophy', '#7C3AED', 5),
-  ('Genre, Équité et Inclusion',
-   'genre-equite-inclusion',
-   'Œuvrer à l''égalité des chances et à la participation pleine et entière des jeunes filles et des jeunes en situation de handicap.',
-   'Promouvoir la parité dans les instances ; lutter contre les violences basées sur le genre.',
-   'users', '#BE185D', 6),
-  ('Coopération, Partenariats et Suivi-Évaluation',
-   'cooperation-partenariats-suivi',
-   'Structurer les relations avec les partenaires et assurer le suivi des engagements du Conseil.',
-   'Négocier et suivre les partenariats ; évaluer la mise en œuvre du plan d''action.',
-   'handshake', '#1D4ED8', 7);
-
-insert into public.categories (name, slug, scope, color) values
-  ('Actualité générale',    'actualite-generale',   'post', '#0C4A6E'),
-  ('Communiqué',            'communique',           'post', '#B45309'),
-  ('Vie des commissions',   'vie-des-commissions',  'post', '#15803D'),
-  ('Note de réflexion',     'note-de-reflexion',    'post', '#7C3AED'),
-  ('Partenariat',           'partenariat',          'post', '#1D4ED8'),
-  ('Procès-verbal',         'proces-verbal',        'document', '#334155'),
-  ('Rapport d''activité',   'rapport-activite',     'document', '#0F766E'),
-  ('Statuts & règlement',   'statuts-reglement',    'document', '#7C3AED');
-
-insert into public.site_settings (key, value, label) values
-  ('site_name',    '{"value": "CCJP — Conseil Consultatif de la Jeunesse de Podor"}', 'Nom du site'),
-  ('tagline',      '{"value": "La voix de la jeunesse podoroise"}', 'Slogan'),
-  ('description',  '{"value": "Instance de consultation et de proposition de la jeunesse du département de Podor."}', 'Description'),
-  ('email',        '{"value": "contact@ccjp-podor.sn"}', 'E-mail de contact'),
-  ('phone',        '{"value": "+221 XX XXX XX XX"}', 'Téléphone'),
-  ('address',      '{"value": "Podor, Région de Saint-Louis, Sénégal"}', 'Adresse'),
-  ('social',       '{"value": {"facebook": "", "instagram": "", "x": "", "whatsapp": "", "tiktok": ""}}', 'Réseaux sociaux'),
-  ('home_hero',    '{"value": {"title": "", "subtitle": "", "cta_label": "", "cta_url": ""}}', 'Bandeau d''accueil');
+create policy "Admins voient tous les admins"
+  on public.admins for select using (public.is_admin());
 ```
 
----
+**Procédure de création du premier administrateur** (à exécuter dans le SQL
+Editor Supabase, une seule fois) :
 
-## 5. Rôles, authentification et habilitations
+```sql
+-- 1. Créer l'utilisateur dans Supabase Auth (Dashboard → Authentication → Users)
+--    → relever son UUID
 
-### 5.1 Modèle de rôles
+-- 2. L'habiliter comme administrateur :
+insert into public.admins (user_id, email, nom)
+values ('<UUID-de-l-utilisateur>', 'president@ccjp-podor.sn', 'Président du CCJP');
+```
 
-| Rôle | Peut faire | Ne peut pas faire |
-|---|---|---|
-| **`admin`** | Tout : publier, gérer les comptes, modifier les paramètres du site, supprimer | — |
-| **`editeur`** | Publier et modifier tous les contenus, modérer les messages | Gérer les comptes, modifier les paramètres sensibles |
-| **`responsable_commission`** | Publier/modifier **uniquement** les activités et actualités de **sa** commission ; gérer les membres de sa commission | Toucher aux autres commissions, aux paramètres, aux comptes |
-| **`lecteur`** | Se connecter et voir le tableau de bord (préparatoire V2) | Toute écriture |
-
-### 5.2 Parcours d'authentification
+### 7.2 Parcours d'authentification
 
 ```
 /admin/*  ──▶ middleware.ts ──▶ session Supabase valide ?
                                    │
                     non ◀─────────┴────────▶ oui
                      │                        │
-              /admin/connexion          profil.is_active ?
+              /auth/login              is_admin() ?
                      │                        │
-              formulaire e-mail          non ──▶ déconnexion + message
-              + mot de passe                     │
-                     │                        oui
-              Supabase Auth                     │
-                     └──────────▶ /admin (tableau de bord)
+              formulaire e-mail        non ──▶ page « Accès non autorisé »
+              + mot de passe                  │
+                     │                      oui
+              Supabase Auth                   │
+                     └──────────▶ /admin (dashboard)
 ```
 
 Décisions :
-- **Connexion par e-mail + mot de passe.** C'est le mécanisme le plus fiable dans le contexte sénégalais (les liens magiques dépendent de la délivrabilité e-mail, parfois aléatoire).
-- Politique de mot de passe : **minimum 10 caractères**, avec complexité recommandée.
-- **Aucune inscription publique** : les comptes sont créés uniquement par un `admin` depuis `/admin/parametres/utilisateurs`.
-- Session persistante 30 jours, rafraîchissement automatique par cookie `httpOnly` + `Secure` + `SameSite=Lax`.
-- Protection anti-brute-force : limitation Vercel + `auth.rate_limit` Supabase.
-- **2FA (TOTP)** à activer obligatoirement pour les comptes `admin` (désactivable par projet Supabase).
+- **Connexion e-mail + mot de passe** — mécanisme le plus fiable dans le contexte
+  sénégalais (les liens magiques dépendent de la délivrabilité e-mail).
+- Mot de passe : **minimum 10 caractères**, complexité recommandée.
+- **Aucune inscription publique** : les comptes sont créés dans Supabase Auth, puis
+  habilités via la table `admins`.
+- Session persistante 30 jours, rafraîchissement automatique par cookie
+  `httpOnly` + `Secure` + `SameSite=Lax`.
+- **2FA (TOTP)** recommandé pour les comptes du Président et du Secrétaire exécutif.
 
-### 5.3 Middleware de protection
+### 7.3 Middleware de protection
 
 ```ts
 // middleware.ts
@@ -1131,11 +1042,12 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Rafraîchit la session si besoin — indispensable pour la sécurité.
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user && request.nextUrl.pathname.startsWith('/admin')) {
+  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/admin/connexion'
+    url.pathname = '/auth/login'
     url.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
@@ -1148,497 +1060,412 @@ export const config = {
 }
 ```
 
----
+### 7.4 Stockage (buckets)
 
-## 6. Spécifications fonctionnelles par module
+| Bucket | Contenu | Public | Taille max | Types autorisés |
+|---|---|---|---|---|
+| `actualites-images` | Images des articles | Oui | 5 Mo | JPEG, PNG, WebP, AVIF |
+| `membres-photos` | Photos du Bureau Exécutif | Oui | 2 Mo | JPEG, PNG, WebP |
+| `evenements-images` | Images des événements | Oui | 5 Mo | JPEG, PNG, WebP, AVIF |
+| `documents` | Rapports, PDF, documents officiels | Oui | 20 Mo | PDF, DOCX, XLSX |
 
-### 6.1 Page d'accueil (`/`)
+```sql
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
+  ('actualites-images', 'actualites-images', true, 5242880,
+   array['image/jpeg','image/png','image/webp','image/avif']),
+  ('membres-photos',    'membres-photos',    true, 2097152,
+   array['image/jpeg','image/png','image/webp']),
+  ('evenements-images', 'evenements-images', true, 5242880,
+   array['image/jpeg','image/png','image/webp','image/avif']),
+  ('documents',         'documents',         true, 20971520,
+   array['application/pdf',
+         'application/msword',
+         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
 
-**Objectif** : en 5 secondes, un jeune podorois doit comprendre *qui est le CCJP*, *ce qu'il fait*, et *comment rejoindre ou contacter*.
+-- Lecture publique sur tous les buckets
+create policy "Lecture publique actualites-images" on storage.objects
+  for select using (bucket_id = 'actualites-images');
+create policy "Lecture publique membres-photos" on storage.objects
+  for select using (bucket_id = 'membres-photos');
+create policy "Lecture publique evenements-images" on storage.objects
+  for select using (bucket_id = 'evenements-images');
+create policy "Lecture publique documents" on storage.objects
+  for select using (bucket_id = 'documents');
 
-Blocs, dans l'ordre :
-
-| # | Bloc | Contenu | Source |
-|---|---|---|---|
-| 1 | **Bandeau principal (Hero)** | Nom du CCJP, slogan éditable, photo du département / illustration, 2 CTA : « Rejoindre le CCJP » → `/proposer`, « Nos activités » → `/activites` | `site_settings.home_hero` |
-| 2 | **Le CCJP en bref** | 3 chiffres clés (commissions, conseillers, activités réalisées) + 3 lignes de mission | compteurs calculés |
-| 3 | **À la une** | 1 actualité mise en avant (`is_featured`), grande carte | `posts` |
-| 4 | **Dernières actualités** | 6 cartes (titre, date, catégorie, extrait, image) | `posts` |
-| 5 | **Agenda** | 3 prochains événements | `events` |
-| 6 | **Les commissions** | Grille des commissions actives avec icône et couleur | `commissions` |
-| 7 | **Réunir la jeunesse** | Bandeau d'appel : « Ta voix compte » + CTA vers le formulaire de proposition | statique |
-| 8 | **Ressources récentes** | 3 derniers documents publiés | `documents` |
-| 9 | **Galerie** | Bandeau de 6 photos | `media` |
-| 10 | **Newsletter + Contact** | Inscription e-mail et coordonnées | formulaire |
-
-Rendu : **ISR** (`export const revalidate = 300`) + revalidation ciblée à la publication via `revalidateTag('home')`.
-
-### 6.2 Actualités — « Informer » (`/actualites`)
-
-- **Liste** : pagination (12 par page), filtres par catégorie, recherche, tri (récent / ancien / populaire).
-- **Fiche** (`/actualites/[slug]`) : image de une, titre, date, auteur, catégorie, corps de l'article, galerie associée, documents liés, boutons de partage (WhatsApp, Facebook, X, copie du lien), articles liés de la même catégorie.
-- **Vues** : compteur incrémenté via Server Action (dans la limite du raisonnable pour éviter le gonflement).
-- **Statuts** : `brouillon` → `publie` → `archive`. Les brouillons ne sont **jamais** visibles publiquement, pas même via URL directe (garanti par la RLS).
-
-### 6.3 Le CCJP (`/ccjp`)
-
-Sous-pages :
-
-| Route | Contenu |
-|---|---|
-| `/ccjp` | Missions, vision, ce qu'est un conseil consultatif, historique, rattachement au CCJS national (décret n° 2025-1962 du 5 décembre 2025) |
-| `/ccjp/bureau` | Bureau exécutif : cartes avec photo, fonction, commune, biographie |
-| `/ccjp/conseillers` | Annuaire filtrable par commission et par commune |
-| `/ccjp/commissions` | Grille des 7 (à confirmer) commissions |
-| `/ccjp/commissions/[slug]` | Fiche commission : mission, responsable, membres, activités réalisées, actualités liées, documents, indicateurs |
-| `/ccjp/fonctionnement` | Comment on devient conseiller, le mandat, les séances plénières, le calendrier |
-
-### 6.4 Activités par commission — « Vulgariser » (`/activites`)
-
-C'est **le module différenciant** de la plateforme. Il répond directement à l'objectif O3.
-
-**Filtres** : commission · type d'activité · commune · période (année / trimestre) · mot-clé.
-
-**Types d'activité** : réunion de commission, séance plénière, formation, sensibilisation, projet de terrain, rencontre partenaire, conférence, mission.
-
-**Fiche activité** (`/activites/[slug]`) :
-
-```
-┌─────────────────────────────────────────────────┐
-│ [Commission] [Type]            [Date]            │
-│ Titre de l'activité                              │
-│ Photo de couverture                              │
-├──────────────────────┬──────────────────────────┤
-│ Résumé exécutif      │  Fiche signalétique      │
-│ (lisible en 30 s)    │  • Date & lieu           │
-│                      │  • Commune               │
-│ Compte rendu détaillé│  • Nb de participants    │
-│ (sections, listes)   │  • Budget engagé         │
-│                      │  • Partenaires           │
-│ Galerie photos       │  • Lien vers le PDF      │
-│                      │                          │
-│ Enseignements /      │  Autres activités de     │
-│ suites à donner      │  la même commission      │
-└──────────────────────┴──────────────────────────┘
+-- Écriture réservée aux administrateurs
+create policy "Admins déposent des fichiers" on storage.objects
+  for insert with check (public.is_admin());
+create policy "Admins suppriment des fichiers" on storage.objects
+  for delete using (public.is_admin());
 ```
 
-**Objectif de vulgarisation** : chaque fiche doit contenir, au minimum, un **résumé exécutif de 3 phrases** rédigé pour être compris sans connaissance préalable. Un indicateur de complétude s'affiche dans le back-office pour inciter les rédacteurs à remplir la fiche.
+### 7.5 Protection des formulaires publics
 
-**Page de synthèse par commission** (`/ccjp/commissions/[slug]`) : nombre d'activités, participants cumulés, budget total, frise chronologique des 12 derniers mois.
+Les tables `adhesions` et `contacts` acceptent les insertions publiques. Contre-mesures :
 
-### 6.5 Agenda (`/agenda`)
+1. **Validation Zod côté serveur** dans chaque Server Action (longueurs, formats
+   e-mail, champs obligatoires).
+2. **Champ honeypot** caché sur les deux formulaires.
+3. **Contrainte de temps de saisie** : rejet si soumission en moins de 3 secondes.
+4. **Limitation de débit** au middleware Vercel : 5 soumissions / IP / heure.
+5. **Aucune politique `select` / `update` / `delete` publique** sur ces tables.
 
-- Vue **liste** et vue **calendrier mensuel**.
-- Distinction visuelle entre « passé » et « à venir ».
-- Export `.ics` par événement (bouton « Ajouter à mon calendrier »).
-- Aucun événement à venir → message « Aucune activité programmée pour le moment ».
-
-### 6.6 Ressources documentaires (`/ressources`)
-
-- Filtres : catégorie, année, mot-clé.
-- Affichage : titre, description, date, type, taille du fichier, nombre de téléchargements.
-- Téléchargement direct depuis le bucket `documents`.
-- Les documents liés à une activité apparaissent automatiquement sur la fiche de cette activité.
-
-### 6.7 Galerie (`/galerie`)
-
-- Albums thématiques (par commission ou par événement).
-- Lightbox accessible au clavier, navigation précédent/suivant.
-- Images servies via `next/image` en WebP/AVIF, dimensions multiples générées par Vercel.
-
-### 6.8 Contact et propositions — « Réunir la jeunesse » (`/contact`, `/proposer`)
-
-**Formulaire de contact** : nom, e-mail, téléphone (optionnel), commune (liste déroulante), objet, message. Case anti-spam (honeypot + contrainte de temps de saisie). Accusé de réception affiché.
-
-**Formulaire « Propose ton idée »** : nom, âge, commune, commission concernée, titre de la proposition, description, « es-tu disponible pour la défendre en séance ? ». Ces messages sont étiquetés `kind = 'proposition'` et remontés dans le back-office avec un statut dédié.
-
-**Modération** (`/admin/messages`) : liste, filtre par statut et par type, vue détail, réponse type enregistrable, changement de statut (`nouveau` → `lu` → `traite` → `archive`).
-
-### 6.9 Recherche et newsletter
-
-- **Recherche** (`/recherche`) : plein texte sur `posts` et `activities` via `ilike` + index GIN `pg_trgm`, résultats groupés par type, mise en évidence des termes.
-- **Newsletter** : inscription e-mail simple, stockage en base, désinscription par lien unique. *L'envoi effectif des lettres est en V2* (via Resend ou Brevet) ; en V1, la base d'abonnés est simplement constituée.
-
-### 6.10 Back-office (`/admin`)
-
-| Page | Contenu |
-|---|---|
-| `/admin` | **Tableau de bord** : compteurs (articles publiés, brouillons, activités, messages non lus), derniers contenus modifiés, agenda des 7 prochains jours, alertes de complétude |
-| `/admin/actualites` | Liste + création + édition ; éditeur riche ; image de une ; catégorie ; commission ; planification ; mise en avant |
-| `/admin/activites` | Liste + CRUD ; tous les champs de la fiche activité ; upload multiple de photos ; association de documents |
-| `/admin/agenda` | CRUD des événements |
-| `/admin/commissions` | CRUD des commissions (nom, slug, description, mission, icône, couleur, ordre, actif) |
-| `/admin/membres` | CRUD des membres ; photo ; fonction ; commune ; mandat ; ordre d'affichage |
-| `/admin/documents` | Upload et classement des documents |
-| `/admin/galerie` | Albums, upload multiple, légendes, ordre |
-| `/admin/messages` | Modération |
-| `/admin/parametres` | Identité du site, coordonnées, réseaux sociaux, textes d'accueil, gestion des utilisateurs et des rôles |
-
-**Principes d'interface du back-office** :
-1. Tout en **français**, sans jargon technique.
-2. Chaque formulaire affiche une **aide contextuelle** en dessous du champ concerné.
-3. **Brouillon automatique** (localStorage) pendant la saisie longue.
-4. **Aperçu** avant publication pour les actualités.
-5. Confirmation explicite avant toute suppression.
-6. Messages de succès/erreur clairs, en français.
-
----
-
-## 7. Design system et interface
-
-### 7.1 Palette (à ajuster selon la charte CCJP)
-
-Proposée à partir des couleurs nationales sénégalaises et de l'identité fluviale du département :
-
-| Token | Nom | Hex | Usage |
-|---|---|---|---|
-| `--color-fleuve-900` | Bleu Fleuve profond | `#082F49` | Texte principal, en-têtes |
-| `--color-fleuve-700` | Bleu Fleuve | `#0C4A6E` | **Couleur primaire** : boutons, liens, en-tête |
-| `--color-fleuve-500` | Bleu Fleuve clair | `#0284C7` | Survol, accents |
-| `--color-sahel-500` | Or Sahel | `#F59E0B` | **Accent** : badges, mises en avant, CTA secondaire |
-| `--color-espoir-600` | Vert Espoir | `#15803D` | Succès, environnement, actions validées |
-| `--color-terre-500` | Terre de Podor | `#B45309` | Alertes douces, catégories |
-| `--color-sable-50` | Sable | `#FAFAF9` | Fond de page |
-| `--color-sable-200` | Sable bordure | `#E7E5E4` | Bordures, séparateurs |
-
-```css
-/* src/app/globals.css — Tailwind v4, config CSS-first */
-@import "tailwindcss";
-
-@theme {
-  --color-fleuve-50:  #F0F9FF;
-  --color-fleuve-700: #0C4A6E;
-  --color-fleuve-900: #082F49;
-  --color-sahel-500:  #F59E0B;
-  --color-espoir-600: #15803D;
-  --color-terre-500:  #B45309;
-  --color-sable-50:   #FAFAF9;
-  --color-sable-200:  #E7E5E4;
-
-  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-}
-```
-
-### 7.2 Typographie
-
-- **Titres** : `Plus Jakarta Sans` (ou `Outfit`), poids 700/800.
-- **Corps** : `Inter`, 16 px, interlignage 1.65.
-- Polices **auto-hébergées** via `next/font/google` (évite un appel CDN externe bloquant, améliore nettement les performances au Sénégal).
-
-### 7.3 Composants et gabarits
-
-| Composant | Description |
-|---|---|
-| `SiteHeader` | Logo, navigation principale (Accueil, Le CCJP ▾, Commissions ▾, Activités, Agenda, Ressources, Galerie, Contact), bouton « Proposer », recherche, menu mobile en tiroir |
-| `SiteFooter` | Coordonnées, plan du site, réseaux sociaux, mentions légales, « Fait avec ❤ à Podor » |
-| `Card` | Carte générique (article, activité, membre, document) |
-| `Badge` | Étiquette de catégorie / commission / statut, colorée |
-| `StatBlock` | Bloc chiffre clé (nombre + libellé) |
-| `Timeline` | Frise chronologique des activités |
-| `FilterBar` | Barre de filtres (sélecteurs + recherche), synchro avec l'URL |
-| `DataTable` | Tableau du back-office (tri, pagination, actions) |
-| `ImageUpload` | Glisser-déposer, aperçu, compression côté client avant envoi |
-| `RichTextEditor` | Éditeur Tiptap : gras, italique, titres, listes, lien, citation, image, alignement |
-| `EmptyState` | État vide explicite (« Aucune actualité pour l'instant ») |
-
-### 7.4 Règles visuelles
-
-- **Mobile-first** : la maquette est conçue pour 360 px puis enrichie.
-- Grille 12 colonnes, conteneur max 1200 px, gouttière 16 px (mobile) / 24 px (desktop).
-- Rayons : 8 px (petits éléments), 12 px (cartes), 16 px (sections).
-- Ombres très discrètes ; profondeur portée par les bordures et les fonds.
-- Aucun dégradé agressif ; préférer des aplats et des Filets de couleur.
-- **Pas de carrousel automatique** sur les actualités (mauvais pour l'accessibilité et la performance).
-
----
-
-## 8. Contraintes réseau, performance et accessibilité
-
-### 8.1 Contexte réseau sénégalais
-
-La majorité des visiteurs consulteront le site depuis un **téléphone Android en 3G/4G**, avec une facturation de données réelle. Chaque octet compte.
-
-| Mesure | Mise en œuvre |
-|---|---|
-| Images | `next/image` en **AVIF/WebP**, dimensions `srcset` adaptatives, `priority` sur l'image de une uniquement |
-| JS client | Server Components par défaut ; `"use client"` uniquement là où c'est nécessaire (filtres, éditeur, lightbox) |
-| Polices | auto-hébergées, `display: swap`, sous-ensemble latin |
-| PDF | compression avant dépôt (objectif < 2 Mo) ; affichage de la taille |
-| Chargement | `<link rel="preload">` sur les ressources critiques ; polices système en repli |
-| Cache | ISR 5 min sur les listes, 1 h sur les fiches ; CDN Vercel |
-| Tiers | **Aucun script tiers** en V1 sauf analytics léger (Vercel Analytics, < 2 Ko) |
-
-**Cibles** : LCP ≤ 2,5 s sur 4G, CLS ≤ 0,1, première requête ≤ 200 Ko de HTML+JS.
-
-### 8.2 Accessibilité (WCAG 2.1 AA)
-
-- Contrastes vérifiés (≥ 4,5:1 pour le texte courant).
-- Navigation **100 % au clavier**, avec un lien d'évitement (« Aller au contenu »).
-- Attributs `alt` obligatoires sur les images (validé côté back-office).
-- Libellés de formulaire explicites, messages d'erreur associés via `aria-describedby`.
-- Structure de titres `h1` → `h2` → `h3` respectée, un seul `h1` par page.
-- Langue `fr` déclarée ; attributs `lang` sur les passages en pulaar/wolof.
-- Respect de `prefers-reduced-motion`.
-
-### 8.3 Robustesse
-
-- Pages d'erreur 404 et 500 personnalisées, en français.
-- `loading.tsx` (squelettes) sur chaque route dynamique.
-- Gestion des cas vides sur toutes les listes.
-- Repli si Supabase est injoignable : message explicite plutôt qu'un écran blanc.
-
----
-
-## 9. SEO, référencement et mesure d'audience
-
-| Élément | Mise en œuvre |
-|---|---|
-| Métadonnées | `generateMetadata()` sur chaque page : titre, description, Open Graph, Twitter Card |
-| `sitemap.xml` | `app/sitemap.ts` — actualités, activités, commissions, membres |
-| `robots.txt` | `app/robots.ts` — autorise tout sauf `/admin`, `/api` |
-| URL | Slugs lisibles, en français, stables (jamais renommés après publication) |
-| Données structurées | JSON-LD `Organization`, `NewsArticle`, `Event`, `Person` |
-| Langue | `<html lang="fr">` ; balises `hreflang` préparées pour le pulaar/wolof en V2 |
-| Maillage interne | Fil d'Ariane sur les fiches ; articles liés ; liens vers la commission concernée |
-| Analytics | **Vercel Analytics** + événements personnalisés (`telechargement`, `proposition_envoyee`, `clic_whatsapp`) |
-
----
-
-## 10. Sécurité et conformité
-
-### 10.1 Principes
-
-1. **La base est le dernier rempart** : la RLS est activée sur toutes les tables, y compris celles en lecture seule publique.
-2. **La clé `service_role` n'existe que côté serveur**, dans des variables d'environnement Vercel non exposées au client (`SUPABASE_SERVICE_ROLE_KEY` sans préfixe `NEXT_PUBLIC_`).
-3. **Toute écriture est validée par Zod** côté serveur, même si le formulaire client valide déjà.
-4. **Aucun secret dans Git** : `.env.local` est ignoré, `.env.local.example` documente les variables.
-5. **En-têtes de sécurité** dans `next.config.ts` : CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`.
+### 7.6 En-têtes de sécurité
 
 ```ts
-// next.config.ts (extrait)
+// next.config.js
 const securityHeaders = [
-  { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-  { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'X-DNS-Prefetch-Control',  value: 'on' },
+  { key: 'X-Frame-Options',         value: 'SAMEORIGIN' },
+  { key: 'X-Content-Type-Options',  value: 'nosniff' },
+  { key: 'Referrer-Policy',         value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy',      value: 'camera=(), microphone=(), geolocation=()' },
 ]
 ```
 
-### 10.2 Gestion des contenus sensibles
-
-- Les **brouillons** ne sont jamais exposés (RLS + filtre applicatif).
-- Les documents non publics (`is_public = false`) sont inaccessibles publiquement.
-- Les **données personnelles** des membres et des conseillers sont limitées au nécessaire ; les e-mails et téléphones ne sont publiés que sur décision explicite du Bureau.
-- Suppression en cascade : supprimer une activité supprime ses médias liés.
-
-### 10.3 Lutte contre le spam et les abus
-
-- Champ **honeypot** caché sur tous les formulaires publics.
-- Contrainte de **temps de saisie minimal** (rejet si soumission < 3 s).
-- **Limitation de débit** au middleware Vercel : 5 soumissions / IP / heure sur `/api/*` et les Server Actions de formulaire.
-- Échappement systématique du HTML des entrées utilisateur (React le fait par défaut ; l'éditeur riche est réservé au personnel authentifié).
-- Sauvegarde quotidienne automatique par Supabase + export hebdomadaire manuel des données.
-
-### 10.4 Conformité
-
-- Page **mentions légales** et **politique de confidentialité** obligatoires, y compris le droit à l'effacement des données personnelles.
-- Bandeau de consentement analytics si un cookie tiers est ajouté (V1 : Vercel Analytics ne dépose pas de cookie → pas de bandeau nécessaire).
-
 ---
 
-## 11. Découpage en sprints (backlog de réalisation)
+## 8. Les 14 commissions
 
-Durée estimée : **8 à 10 semaines** pour une équipe de 1 à 2 personnes assistées par un agent Antigravity.
+Chaque commission dispose d'une page publique dédiée
+(`/commissions/[slug]`) affichant sa description, sa vision, ses axes stratégiques,
+ses projets phares et les actualités liées.
 
-### Sprint 0 — Fondations (semaine 1)
+| N° | Commission | Slug | Icône | Couleur | Axe thématique |
+|---|---|---|---|---|---|
+| **01** | Gouvernance, Paix & Sécurité | `gouvernance-paix-securite` | ⚖️ | `#1A3A5C` | Gouvernance & Engagement Citoyen |
+| **02** | Communication & Relations Publiques | `communication-relations-publiques` | 📢 | `#1B5E20` | Gouvernance & Engagement Citoyen |
+| **03** | Emploi & Entrepreneuriat | `emploi-entrepreneuriat` | 💼 | `#1A3A5C` | Emploi, Entrepreneuriat & Numérique |
+| **04** | Éducation & Formation | `education-formation` | 📚 | `#7B3F00` | Éducation, Santé & Inclusion |
+| **05** | Numérique & Innovation | `numerique-innovation` | 💻 | `#1A3A5C` | Emploi, Entrepreneuriat & Numérique |
+| **06** | Santé & Bien-être | `sante-bien-etre` | 🏥 | `#7B3F00` | Éducation, Santé & Inclusion |
+| **07** | Genre, Inclusion & Équité | `genre-inclusion-equite` | 🤝 | `#7B3F00` | Éducation, Santé & Inclusion |
+| **08** | Environnement & Développement Durable | `environnement-developpement-durable` | 🌿 | `#1B5E20` | Environnement, Culture, Sport & Ouverture |
+| **09** | Diaspora & Coopération | `diaspora-cooperation` | 🌍 | `#1B5E20` | Environnement, Culture, Sport & Ouverture |
+| **10** | Citoyenneté & Vie Associative | `citoyennete-vie-associative` | 🏛️ | `#1A3A5C` | Gouvernance & Engagement Citoyen |
+| **11** | Sports | `sports` | ⚽ | `#1B5E20` | Environnement, Culture, Sport & Ouverture |
+| **12** | Culture | `culture` | 🎭 | `#1B5E20` | Environnement, Culture, Sport & Ouverture |
+| **13** | Diagnostic, Suivi & Évaluation | `diagnostic-suivi-evaluation` | 📊 | `#1A3A5C` | Pilotage, Patrimoine & Développement Territorial |
+| **14** | Tourisme & Patrimoine | `tourisme-patrimoine` | 🏰 | `#1A3A5C` | Pilotage, Patrimoine & Développement Territorial |
 
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S0.1 | Créer le projet Next.js 15 + TypeScript + Tailwind v4 | `npm run dev` répond sur `:3000` |
-| S0.2 | Initialiser Git, configurer ESLint/Prettier | `npm run lint` passe sans erreur |
-| S0.3 | Créer le projet Supabase (dev + prod) | URL et clés disponibles |
-| S0.4 | Écrire et appliquer les migrations 0001–0003 | Toutes les tables et politiques existent |
-| S0.5 | Configurer les buckets Storage et leurs politiques | Upload test réussi |
-| S0.6 | Écrire `.env.local.example` et documenter | Aucun secret commité |
-| S0.7 | Créer le compte `admin` initial et vérifier la RLS | Un `lecteur` anonyme ne voit que le contenu publié |
-| S0.8 | Déployer une coquille sur Vercel | L'URL de preview répond |
+### 8.1 Les 5 axes thématiques
 
-### Sprint 1 — Socle applicatif (semaine 2)
-
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S1.1 | Configurer les clients Supabase (navigateur / serveur / admin) | Connexion établie des deux côtés |
-| S1.2 | Générer les types TypeScript | `src/lib/types.ts` à jour |
-| S1.3 | Implémenter le design system (`globals.css`, tokens, composants UI) | Palette et typo conformes |
-| S1.4 | Construire `SiteHeader` + `SiteFooter` + navigation mobile | Navigation complète, responsive |
-| S1.5 | Mettre en place le `middleware.ts` de protection `/admin` | Redirection vers connexion si non authentifié |
-| S1.6 | Page `/admin/connexion` + Server Action d'authentification | Connexion/déconnexion fonctionnelles |
-| S1.7 | `AdminShell` (sidebar, en-tête, indicateur de rôle) | Layout admin rendu |
-| S1.8 | Helpers : `slugify`, `formatDateFr`, `cn`, pagination | Tests unitaires passent |
-
-### Sprint 2 — Contenus (semaines 3–4)
-
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S2.1 | Module Catégories + Commissions (CRUD back-office) | Création/édition/suppression OK |
-| S2.2 | Module Actualités : formulaire + éditeur Tiptap + image de une | Publication effective |
-| S2.3 | Page liste actualités avec filtres et pagination | Filtres synchronisés avec l'URL |
-| S2.4 | Page fiche actualité + métadonnées + JSON-LD | Page complète et partageable |
-| S2.5 | Revalidation ISR à la publication | Contenu en ligne en < 1 min |
-| S2.6 | Module Activités : formulaire complet + galerie | Tous les champs renseignables |
-| S2.7 | Page liste activités (filtres commission/type/commune) | Filtres combinables |
-| S2.8 | Page fiche activité (résumé, compte rendu, indicateurs) | Gabarit conforme §6.4 |
-| S2.9 | Page synthèse par commission + frise chronologique | Chiffres corrects |
-| S2.10 | Module Membres + pages bureau/conseillers | Annuaire filtrable |
-
-### Sprint 3 — Institutionnel et interactions (semaine 5)
-
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S3.1 | Page `/ccjp` (missions, organisation, rattachement CCJS) | Contenu conforme |
-| S3.2 | Page `/ccjp/fonctionnement` | Contenu conforme |
-| S3.3 | Module Agenda + vue liste et calendrier + export `.ics` | Événements gérables |
-| S3.4 | Module Documents + upload + page ressources | Téléchargement fonctionnel |
-| S3.5 | Galerie publique + lightbox accessible | Navigation clavier OK |
-| S3.6 | Formulaire de contact + modération back-office | Message reçu et traitable |
-| S3.7 | Formulaire « Propose ton idée » | Message étiqueté `proposition` |
-| S3.8 | Newsletter (inscription + désinscription) | Adresse enregistrée |
-| S3.9 | Page recherche plein texte | Résultats pertinents |
-
-### Sprint 4 — Accueil, tableau de bord et paramètres (semaine 6)
-
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S4.1 | Assemblage de la page d'accueil (10 blocs) | Rendu conforme §6.1 |
-| S4.2 | Compteurs dynamiques (commissions, conseillers, activités) | Chiffres justes |
-| S4.3 | Tableau de bord `/admin` | Compteurs et alertes affichés |
-| S4.4 | Indicateur de complétude des fiches activité | Alerte si champs manquants |
-| S4.5 | Paramètres du site (identité, contacts, réseaux, textes) | Modifications répercutées |
-| S4.6 | Gestion des utilisateurs et des rôles | Création et changement de rôle OK |
-| S4.7 | Brouillon automatique et aperçu avant publication | Sauvegarde locale fonctionnelle |
-
-### Sprint 5 — Qualité, performance, conformité (semaine 7)
-
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S5.1 | En-têtes de sécurité + CSP | En-têtes présents en réponse |
-| S5.2 | Limitation de débit + honeypot sur les formulaires | Requêtes excessives bloquées |
-| S5.3 | Sitemap, robots, métadonnées, JSON-LD | Fichiers valides |
-| S5.4 | Mentions légales + politique de confidentialité | Pages publiées |
-| S5.5 | Audit accessibilité (clavier, contrastes, ARIA) | WCAG 2.1 AA |
-| S5.6 | Audit Lighthouse mobile | Score ≥ 90 (perf, a11y, SEO) |
-| S5.7 | Tests Playwright des parcours critiques | Connexion admin, publication, contact |
-| S5.8 | Pages 404/500 + squelettes de chargement | Aucun écran blanc |
-
-### Sprint 6 — Contenus, recette et mise en production (semaines 8–9)
-
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| S6.1 | Reprise des contenus réels (textes, photos, documents) | Aucun contenu de démonstration |
-| S6.2 | Vérification des données territoire (communes, commissions) | Données exactes |
-| S6.3 | Formation des administrateurs (2 h, en français) | Chacun publie une actualité seul |
-| S6.4 | Guide d'utilisation remis au Bureau | Document écrit livré |
-| S6.5 | Recette complète par le Bureau | PV de recette signé |
-| S6.6 | Configuration du domaine `.sn` et HTTPS | Site accessible |
-| S6.7 | Mise en production sur Vercel (branche `main`) | Site en ligne |
-| S6.8 | Sauvegarde initiale et vérification | Export réalisé |
-
----
-
-## 12. Méthode d'exécution sur Google Antigravity
-
-Antigravity est un IDE agentique (Gemini 3) avec **Agent Manager**, **Plan Mode / Fast Mode**, **Artifacts** et un **navigateur intégré**. Voici comment l'utiliser efficacement pour ce projet.
-
-### 12.1 Configuration initiale
-
-1. **Ouvrir le dépôt** `CCJP` dans Antigravity.
-2. **Déposer ce plan** (`PLAN_IMPLEMENTATION.md`) à la racine : il servira de mémoire persistante pour les agents.
-3. Activer le mode **« Agent-assisted »** (recommandé) : l'agent demande confirmation avant chaque action sensible.
-4. Autoriser dans la allow-list : `npm`, `npx`, `node`, `git`, `supabase`.
-5. **Refuser** par défaut toute commande touchant à `rm -rf`, aux variables d'environnement de production, ou au déploiement direct.
-
-### 12.2 Règles de prompting
-
-| Règle | Pourquoi |
+| Axe | Commissions |
 |---|---|
-| **Une tâche = un prompt** | Reprendre un ID de sprint (S2.2) et le coller tel quel dans le prompt |
-| **Toujours joindre le contexte** | « Réfère-toi à PLAN_IMPLEMENTATION.md §4.3 pour le schéma et §6.4 pour le gabarit » |
-| **Travailler en Plan Mode pour le structurel** | Schéma de base, routes, layout : laisser l'agent produire son plan, le relire, puis l'approuver |
-| **Fast Mode pour le correctif** | Une couleur à changer, un libellé à corriger |
-| **Vérifier via Artifacts** | Accepter une tâche seulement après avoir vu la capture d'écran du navigateur intégré |
-| **Un commit par tâche** | Facilite le retour arrière ; message de commit reprenant l'ID du sprint |
+| **Gouvernance & Engagement Citoyen** | 01, 02, 10 |
+| **Éducation, Santé & Inclusion** | 04, 06, 07 |
+| **Emploi, Entrepreneuriat & Numérique** | 03, 05 |
+| **Environnement, Culture, Sport & Ouverture** | 08, 09, 11, 12 |
+| **Pilotage, Patrimoine & Développement Territorial** | 13, 14 |
 
-### 12.3 Modèle de prompt (à copier)
+### 8.2 Structure de la page commission
 
 ```
-Contexte : projet CCJP, plateforme Next.js 15 + Supabase + Tailwind + Vercel.
-Réfère-toi à PLAN_IMPLEMENTATION.md, sections [X] et [Y].
-
-Tâche [ID] : [intitulé exact du tableau de sprint]
-
-Exigences :
-- [exigence 1]
-- [exigence 2]
-
-Contraintes :
-- Server Components par défaut, "use client" seulement si nécessaire
-- Textes et messages en français
-- Validation Zod côté serveur
-- Pas de secret en dur
-- Mobile-first, accessible au clavier
-
-Livrable attendu :
-- [fichiers créés/modifiés]
-- Vérification : [commande ou capture d'écran]
-
-Ne fais rien d'autre que cette tâche. Ne modifie pas [fichiers exclus].
+┌──────────────────────────────────────────────────────────┐
+│ [Bandeau couleur commission]                             │
+│ Icône · N° · Nom de la commission                        │
+├──────────────────────────────────────────────────────────┤
+│ Description          │  Vision                           │
+│ (texte introductif)  │  (encadré coloré)                │
+├──────────────────────┴──────────────────────────────────┤
+│ Axes stratégiques  → badges cliquables                   │
+├──────────────────────────────────────────────────────────┤
+│ Projets phares                                          │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐              │
+│  │ Année     │ │ Année     │ │ Année     │              │
+│  │ Titre     │ │ Titre     │ │ Titre     │              │
+│  │ Statut    │ │ Statut    │ │ Statut    │              │
+│  └───────────┘ └───────────┘ └───────────┘              │
+├──────────────────────────────────────────────────────────┤
+│ Actualités liées à cette commission (3 dernières)        │
+├──────────────────────────────────────────────────────────┤
+│ ← Retour à toutes les commissions                        │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 12.4 Parallélisation possible
-
-L'Agent Manager permet de lancer plusieurs agents en parallèle. Les lots indépendants :
-
-| Lot | Tâches simultanables |
-|---|---|
-| **A** | S1.3 (design system) + S1.4 (header/footer) |
-| **B** | S2.2 (actualités) + S2.6 (activités) — *après* S2.1 |
-| **C** | S3.4 (documents) + S3.5 (galerie) |
-| **D** | S5.3 (SEO) + S5.4 (pages légales) |
-
-À ne **pas** paralléliser : tout ce qui touche au schéma de base de données ou au layout racine (conflits garantis).
-
-### 12.5 Points de vigilance avec les agents
-
-- Un agent peut « inventer » une table ou un champ absent du schéma : **toujours recouper avec §4.3**.
-- Un agent peut utiliser la clé `service_role` côté client : **vérifier chaque fichier** contenant `createClient`.
-- Un agent peut oublier la RLS sur une nouvelle table : **toute nouvelle table doit avoir `enable row level security`** dès sa création.
-- Un agent peut écrire les textes en anglais : exiger le français dans chaque prompt.
+> **Objectif de vulgarisation (O3).** La page commission doit être compréhensible
+> par un jeune de 15 ans comme par un partenaire technique : description simple,
+> vision formulée en une phrase, projets phares datés avec un statut visible
+> (planifié / en cours / réalisé).
 
 ---
 
-## 13. Configuration et variables d'environnement
+## 9. Pages publiques
 
-### 13.1 `.env.local.example`
+### 9.1 Page d'accueil — 10 sections
+
+| # | Section | Contenu | Source |
+|---|---|---|---|
+| 1 | **Navbar** | Logo CCJP · Menu de navigation · Bouton « Rejoindre le CCJP » | statique |
+| 2 | **Hero Section** | Photo de Podor (fleuve Sénégal) · Titre · Devise · Boutons CTA | `parametres` |
+| 3 | **Bande statistiques** | Les 8 indicateurs d'impact | `statistiques_indicateurs` |
+| 4 | **À propos du CCJP** | Mission · Vision · Valeurs (Écoute, Participation, Impact) · Photo | `parametres` + statique |
+| 5 | **Programme Triennal 2026–2029** | 3 cartes : Année 1 (Structuration) · Année 2 (Consolidation) · Année 3 (Héritage) | statique |
+| 6 | **Nos 14 Commissions** | Grille de 14 cartes colorées cliquables | `commissions` |
+| 7 | **Actualités récentes** | 3 dernières actualités publiées · Bouton « Voir toutes » | `actualites` |
+| 8 | **Prochains événements** | 3 prochains événements · Date · Lieu · Commission · Lien d'inscription | `evenements` |
+| 9 | **CTA — Rejoindre le CCJP** | « Fais entendre ta voix pour Podor » · Bouton vers `/rejoindre` | statique |
+| 10 | **Footer** | Logo · Navigation · Commissions · Contact · Réseaux sociaux · © CCJP | `parametres` |
+
+### 9.2 Détail des pages
+
+**`/actualites`** — liste paginée (12 par page), filtre par commission, tri
+(récent / ancien). Les articles épinglés (`epingle = true`) remontent en tête.
+
+**`/actualites/[slug]`** — image de une, titre, date, commission, corps de
+l'article, galerie, articles liés, boutons de partage (WhatsApp, Facebook, X,
+copie du lien). Compteur de vues incrémenté.
+
+**`/evenements`** — vue liste et vue calendrier mensuel. Distinction visuelle
+entre « à venir » et « terminé ». Export `.ics` par événement.
+
+**`/contact`** — formulaire (nom, e-mail, sujet, message) avec validation Zod,
+honeypot, accusé de réception.
+
+**`/rejoindre`** — formulaire d'adhésion (prénom, nom, e-mail, téléphone,
+quartier, commission souhaitée, motivation). Liste déroulante des 14 commissions
+alimentée par la base. Message de confirmation.
+
+**`/bureau-executif`** — cartes des membres triées par `ordre`, avec photo,
+poste, commission et biographie.
+
+**`/programme`** — les 3 phases du mandat + les projets phares regroupés par
+commission et par année.
+
+### 9.3 Pages techniques
+
+| Fichier | Contenu |
+|---|---|
+| `app/sitemap.ts` | Toutes les routes publiques + actualités + événements + commissions |
+| `app/robots.ts` | Autorise tout sauf `/admin`, `/auth`, `/api` |
+| `app/not-found.tsx` | Page 404 en français avec retour à l'accueil |
+| `app/error.tsx` | Page d'erreur en français |
+
+---
+
+## 10. Espace d'administration
+
+### 10.1 Dashboard (`/admin`)
+
+| Bloc | Contenu |
+|---|---|
+| **Compteurs** | Actualités publiées · Événements à venir · Adhésions en attente · Messages non lus |
+| **Actions rapides** | + Nouvelle actualité · + Nouvel événement · Gérer les adhésions |
+| **Dernières actualités** | 5 dernières avec leur statut (brouillon / publié) |
+| **Derniers messages** | 5 derniers messages de contact |
+
+### 10.2 Les 9 modules
+
+| Module | URL | Fonctionnalités |
+|---|---|---|
+| **📰 Actualités** | `/admin/actualites` | Liste paginée · Créer · Modifier · Supprimer · Statut (brouillon / publié) · Épingler · Upload image · Tags · Lier à une commission |
+| **📆 Événements** | `/admin/evenements` | Liste · Créer · Modifier · Supprimer · Date / lieu / type · Lien d'inscription · Statut (à venir / terminé / annulé) |
+| **🏛️ Commissions** | `/admin/commissions` | Modifier description / vision / axes · Gérer les projets phares · Statut des projets |
+| **👥 Membres** | `/admin/membres` | Ajouter / modifier / supprimer · Upload photo · Poste · Commission · Biographie · Ordre d'affichage |
+| **🖼️ Médiathèque** | `/admin/media` | Upload images / vidéos / documents · Organisation par commission · Copier l'URL · Supprimer |
+| **📋 Adhésions** | `/admin/adhesions` | Liste · Filtrer par statut · Accepter / Refuser · Voir les détails · Export CSV |
+| **✉️ Messages** | `/admin/messages` | Liste · Marquer comme lu · Filtrer · Répondre (mailto) · Supprimer |
+| **⚙️ Paramètres** | `/admin/parametres` | Nom du site · Description · Email de contact · Réseaux sociaux · Indicateurs d'impact · Textes du bandeau |
+| **📊 Dashboard** | `/admin` | Vue d'ensemble (voir 10.1) |
+
+### 10.3 Principes d'interface du back-office
+
+1. **Tout en français**, sans jargon technique.
+2. **Aide contextuelle** sous chaque champ de formulaire.
+3. **Brouillon automatique** (localStorage) pendant les saisies longues.
+4. **Aperçu** avant publication des actualités.
+5. **Confirmation explicite** avant toute suppression.
+6. Messages de succès / erreur clairs, en français.
+7. Layout responsive : l'admin doit être utilisable **sur téléphone**, car les
+   responsables de commission publieront souvent depuis leur mobile.
+
+---
+
+## 11. Plan d'implémentation par phases
+
+Repris du cahier des charges, enrichi des critères d'acceptation.
+
+### Phase 0 — Préparation & Configuration · 2 jours
+
+| ID | Tâche | Critère d'acceptation |
+|---|---|---|
+| P0.1 | Créer le projet Next.js 14 (TypeScript, Tailwind, ESLint, App Router) | `npm run dev` répond sur `:3000` |
+| P0.2 | Configurer Tailwind avec le thème CCJP (§4.1) | Les 6 couleurs sont disponibles |
+| P0.3 | Installer les dépendances (§14.2) | `npm install` sans erreur |
+| P0.4 | Créer les projets Supabase (dev + prod) | URL et clés disponibles |
+| P0.5 | Écrire `.env.local.example` et `.gitignore` | Aucun secret commité |
+| P0.6 | Initialiser Git et pousser sur GitHub | Dépôt créé |
 
 ```bash
-# ---------- Supabase ----------
-NEXT_PUBLIC_SUPABASE_URL="https://xxxxxxxxxxxx.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOi..."
-# ⚠ Serveur uniquement — ne JAMAIS préfixer par NEXT_PUBLIC_
-SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOi..."
-
-# ---------- Site ----------
-NEXT_PUBLIC_SITE_URL="http://localhost:3000"
-NEXT_PUBLIC_SITE_NAME="CCJP Podor"
-
-# ---------- Revalidation ----------
-# Secret partagé avec Supabase (webhook) pour invalider le cache Vercel
-REVALIDATE_SECRET="un-secret-long-et-aleatoire"
+npx create-next-app@latest ccjp-podor --typescript --tailwind --eslint --app
+npm install @supabase/supabase-js @supabase/ssr lucide-react
+npm install react-hook-form @hookform/resolvers zod
+npm install date-fns slugify sonner recharts
 ```
 
-### 13.2 `package.json` — dépendances principales
+### Phase 1 — Base de données & Seed CCJP · 2 jours
+
+| ID | Tâche | Critère d'acceptation |
+|---|---|---|
+| P1.1 | Appliquer la migration 0001 (11 tables) | Toutes les tables existent |
+| P1.2 | Appliquer la migration 0002 (RLS + is_admin) | **12/12 tables avec RLS activée** |
+| P1.3 | Appliquer la migration 0003 (seed) | 14 commissions + 8 indicateurs + 11 paramètres |
+| P1.4 | Créer les 4 buckets Storage + politiques | Upload test réussi |
+| P1.5 | Créer le premier compte admin et l'habiliter | Connexion possible |
+| P1.6 | Générer les types TypeScript | `types/index.ts` à jour |
+| P1.7 | **Test de sécurité** : avec la clé anonyme, vérifier qu'on ne peut ni lire les brouillons, ni écrire dans `actualites` | Aucun accès non autorisé |
+
+### Phase 2 — Composants UI & Layout · 3 jours
+
+| ID | Tâche | Critère d'acceptation |
+|---|---|---|
+| P2.1 | `Button`, `Card`, `Badge`, `SectionTitle`, `StatCard` | Composants rendus avec les 4 variantes |
+| P2.2 | `Navbar` responsive avec menu burger | Utilisable sur 360 px |
+| P2.3 | `Footer` complet (navigation, commissions, contact, réseaux, devise) | Tous les liens fonctionnels |
+| P2.4 | `CommissionCard` (icône, numéro, nom, couleur) | Les 14 cartes s'affichent |
+| P2.5 | Layout public `(public)/layout.tsx` | Navbar + Footer sur toutes les pages |
+| P2.6 | `AdminSidebar` + layout admin | 9 modules listés |
+| P2.7 | `globals.css` + polices (Inter + Playfair Display) | Polices auto-hébergées |
+| P2.8 | `lib/supabase/{client,server,admin}.ts` | Les 3 clients fonctionnent |
+
+### Phase 3 — Pages publiques · 5 jours
+
+| ID | Tâche | Critère d'acceptation |
+|---|---|---|
+| P3.1 | Page d'accueil — 10 sections | Rendu conforme §9.1 |
+| P3.2 | `/a-propos` | Mission, vision, valeurs affichées |
+| P3.3 | `/commissions` — grille des 14 | Couleurs et icônes correctes |
+| P3.4 | `/commissions/[slug]` | Description, vision, axes, projets, actualités liées |
+| P3.5 | `/actualites` — liste paginée + filtre commission | Pagination et filtre fonctionnels |
+| P3.6 | `/actualites/[slug]` | Article complet + partage + vues |
+| P3.7 | `/evenements` + `[id]` | Liste, calendrier, export `.ics` |
+| P3.8 | `/programme` | 3 phases + projets phares par commission |
+| P3.9 | `/bureau-executif` | Membres triés par `ordre` |
+| P3.10 | `/contact` — formulaire validé | Message inséré en base |
+| P3.11 | `/rejoindre` — formulaire d'adhésion | Adhésion insérée, 14 commissions en liste |
+| P3.12 | `sitemap.ts`, `robots.ts`, `not-found.tsx` | Fichiers valides |
+| P3.13 | Métadonnées SEO de toutes les pages | Titre et description par page |
+
+### Phase 4 — Espace d'administration · 5 jours
+
+| ID | Tâche | Critère d'acceptation |
+|---|---|---|
+| P4.1 | `/auth/login` + Server Action de connexion | Connexion / déconnexion fonctionnelles |
+| P4.2 | `middleware.ts` | `/admin` redirige vers `/auth/login` si non connecté |
+| P4.3 | Dashboard avec les 4 compteurs | Chiffres justes |
+| P4.4 | CRUD Actualités (éditeur, image, tags, statut, épingle, commission) | Publication effective |
+| P4.5 | CRUD Événements (dates, lieu, type, lien, statut) | Création et modification OK |
+| P4.6 | CRUD Membres (photo, poste, commission, ordre) | Ordre d'affichage respecté |
+| P4.7 | CRUD Commissions + projets phares | Modification effective |
+| P4.8 | Traitement des adhésions (accepter / refuser, export CSV) | Statut modifiable, CSV exporté |
+| P4.9 | Lecture des messages (lu / non lu, répondre) | Statut `lu` modifiable |
+| P4.10 | Médiathèque (upload, organisation, copie URL) | Fichier visible sur le site |
+| P4.11 | Page Paramètres | Modifications répercutées sur le site |
+| P4.12 | Revalidation ISR à chaque publication | Contenu en ligne en < 1 min |
+
+### Phase 5 — Déploiement Vercel & Tests · 2 jours
+
+| ID | Tâche | Critère d'acceptation |
+|---|---|---|
+| P5.1 | Push sur GitHub | Code poussé |
+| P5.2 | Connexion Vercel → GitHub | Déploiement automatique |
+| P5.3 | Variables d'environnement sur Vercel | Les 5 variables renseignées |
+| P5.4 | Configuration du domaine `ccjp-podor.sn` | HTTPS actif |
+| P5.5 | Tests end-to-end (formulaires, admin, pages) | Tous les parcours passent |
+| P5.6 | Tests de sécurité (RLS, routes protégées) | Aucun accès non autorisé |
+| P5.7 | Seeding des données réelles | Aucune donnée de démonstration |
+| P5.8 | Formation des administrateurs | Chacun publie une actualité seul |
+| P5.9 | Guide d'utilisation remis au Bureau | Document livré |
+
+---
+
+## 12. Planning de développement
+
+5 semaines / 35 jours ouvrables, conforme au cahier des charges.
+
+| Semaine | Jours | Thème | Tâches |
+|---|---|---|---|
+| **1** | 1–7 | Setup, base de données & UI de base | J1-2 : init Next.js, Tailwind CCJP, variables env · J3-4 : tables Supabase, RLS, Storage, seed · J5-6 : Navbar, Footer, Card, Button, Badge · J7 : layout public, layout admin, types |
+| **2** | 8–14 | Sections accueil & pages statiques | J8-9 : HeroSection, StatsSection, AboutSection · J10-11 : CommissionsSection, ProgrammeSection · J12-13 : ActualitesSection, EvenementsSection, CTASection · J14 : pages À Propos, Programme, Bureau Exécutif |
+| **3** | 15–21 | Commissions, actualités, événements & formulaires | J15-16 : liste + détail commissions · J17-18 : liste + article actualités · J19-20 : événements + formulaire contact + formulaire adhésion · J21 : tests, corrections, SEO |
+| **4** | 22–28 | Espace administration complet | J22-23 : login, middleware, layout admin, sidebar · J24-25 : dashboard + CRUD actualités · J26-27 : CRUD événements + adhésions + messages · J28 : membres + médiathèque + paramètres |
+| **5** | 29–35 | Déploiement, tests & formation | J29-30 : déploiement Vercel, domaine, variables prod · J31-32 : tests end-to-end · J33-34 : seeding données réelles, corrections · J35 : formation, documentation |
+
+> **Mise en ligne partielle dès la fin de la semaine 2** : homepage + pages
+> commissions peuvent être déployées sur Vercel pendant que le développement se
+> poursuit. Cela permet au CCJP de communiquer immédiatement sur son existence
+> numérique.
+
+---
+
+## 13. Performance, SEO et accessibilité
+
+### 13.1 Contraintes réseau sénégalaises
+
+La majorité des visiteurs consulteront le site depuis un **téléphone Android en
+3G/4G**, avec une facturation réelle des données.
+
+| Mesure | Mise en œuvre |
+|---|---|
+| Images | `next/image` en AVIF/WebP, `srcset` adaptatif, `priority` sur l'image de une uniquement |
+| JS client | Server Components par défaut ; `"use client"` seulement là où c'est nécessaire |
+| Polices | auto-hébergées via `next/font`, `display: swap`, sous-ensemble latin |
+| Cache | ISR 60–3600 s selon la page (§3.3) + CDN Vercel |
+| Tiers | **Aucun script tiers** en Phase 1 |
+
+**Cibles** : LCP ≤ 2,5 s sur 4G · CLS ≤ 0,1 · première requête ≤ 200 Ko.
+
+### 13.2 SEO
+
+| Élément | Mise en œuvre |
+|---|---|
+| Métadonnées | `generateMetadata()` sur chaque page (titre, description, Open Graph) |
+| `sitemap.xml` | `app/sitemap.ts` — pages, actualités, événements, commissions |
+| `robots.txt` | `app/robots.ts` — bloque `/admin`, `/auth`, `/api` |
+| URL | Slugs lisibles en français, stables (jamais renommés après publication) |
+| Données structurées | JSON-LD `Organization`, `Article`, `Event`, `Person` |
+| Maillage interne | Fil d'Ariane sur les fiches ; articles liés ; lien vers la commission concernée |
+
+### 13.3 Accessibilité
+
+- Contrastes ≥ 4,5:1 pour le texte courant (vérifier le vert `#1B5E20` sur blanc :
+  ratio ≈ 8,6:1 ✅ ; l'or `#F9A825` sur blanc ne doit servir que pour les fonds
+  ou les grands titres, jamais pour du petit texte).
+- Navigation **100 % au clavier**, lien d'évitement (« Aller au contenu »).
+- Attributs `alt` obligatoires sur les images (validé côté back-office).
+- Structure de titres `h1` → `h2` → `h3` respectée, un seul `h1` par page.
+- `<html lang="fr">` ; attribut `lang` sur les passages en pulaar/wolof.
+- Respect de `prefers-reduced-motion`.
+
+---
+
+## 14. Variables d'environnement et dépendances
+
+### 14.1 Variables d'environnement
+
+```bash
+# ============ .env.local — JAMAIS committer sur GitHub ============
+
+# Supabase — Dashboard Supabase → Settings → API
+NEXT_PUBLIC_SUPABASE_URL=https://[votre-projet-ref].supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Application
+NEXT_PUBLIC_SITE_URL=https://ccjp-podor.vercel.app
+NEXT_PUBLIC_SITE_NAME=CCJP - Conseil Consultatif des Jeunes de Podor
+
+# Email transactionnel (optionnel — Phase 2)
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
+EMAIL_FROM=contact@ccjp-podor.sn
+```
+
+> ⚠️ **`SUPABASE_SERVICE_ROLE_KEY` n'a jamais le préfixe `NEXT_PUBLIC_`.**
+> Ce préfixe rend une variable accessible dans le navigateur. La Service Role Key
+> contourne toutes les politiques RLS : sa fuite = accès total à la base.
+
+### 14.2 `package.json`
 
 ```json
 {
@@ -1649,242 +1476,372 @@ REVALIDATE_SECRET="un-secret-long-et-aleatoire"
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test",
-    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/lib/types.ts"
+    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > types/index.ts"
   },
   "dependencies": {
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
     "@supabase/supabase-js": "^2.45.0",
     "@supabase/ssr": "^0.5.0",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
-    "tailwind-merge": "^2.5.0",
+    "tailwindcss": "^3.4.0",
     "lucide-react": "^0.454.0",
+    "react-hook-form": "^7.53.0",
+    "@hookform/resolvers": "^3.9.0",
     "zod": "^3.23.0",
-    "@tiptap/react": "^2.10.0",
-    "@tiptap/starter-kit": "^2.10.0",
-    "@tiptap/extension-image": "^2.10.0",
-    "@tiptap/extension-link": "^2.10.0",
     "date-fns": "^4.1.0",
-    "slugify": "^1.6.0"
+    "slugify": "^1.6.0",
+    "sonner": "^1.5.0",
+    "recharts": "^2.12.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "eslint": "^9.0.0",
-    "eslint-config-next": "^15.0.0",
+    "@types/react": "^18.3.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.0",
     "prettier": "^3.3.0",
-    "prettier-plugin-tailwindcss": "^0.6.0",
-    "@playwright/test": "^1.48.0"
+    "prettier-plugin-tailwindcss": "^0.6.0"
   }
 }
 ```
 
 ---
 
-## 14. Déploiement et CI/CD sur Vercel
+## 15. Déploiement Vercel et CI/CD
 
-### 14.1 Étapes
+### 15.1 Étapes
 
-1. **Connecter le dépôt GitHub** `mcbfd/CCJP` à Vercel.
-2. **Configuration du projet** :
-   - Framework preset : *Next.js*
-   - Branche de production : `main`
-   - Commande de build : `next build` (par défaut)
-   - Répertoire de sortie : `.next`
-3. **Variables d'environnement** : renseigner celles du §13.1 pour les trois environnements (Production, Preview, Development).
-4. **Domaine** : ajouter `ccjp-podor.sn` (ou le domaine retenu), configurer les enregistrements DNS.
-5. **Preview deployments** : activés pour chaque PR — sert d'environnement de recette.
-6. **Webhook Supabase → Vercel** : appeler `/api/revalidate` à chaque modification de contenu pour rafraîchir le cache immédiatement.
+1. **Pousser le code sur GitHub** (dépôt privé recommandé).
+2. **Vercel Dashboard** → « Add New Project » → sélectionner le repo →
+   Framework Preset : *Next.js* (auto-détecté) → ajouter les variables
+   d'environnement → « Deploy ».
+3. **Domaine personnalisé** : Settings → Domains → ajouter `ccjp-podor.sn` →
+   chez le registraire DNS, ajouter le CNAME `@ → cname.vercel-dns.com` →
+   Vercel génère le certificat HTTPS automatiquement.
+4. **CI/CD** : chaque push sur `main` déclenche un déploiement ; les branches de
+   développement créent des Preview URLs ; rollback en un clic ; logs en temps réel.
 
-### 14.2 Stratégie de branches
+### 15.2 Stratégie de branches
 
 ```
-main                ──●──────────────●──────────▶  production
-                     │              │
-feature/s2-actualites ──●──●──●       │             (PR + preview)
-feature/s4-dashboard ──────────●──●   │             (PR + preview)
-                                   └── merge ──▶ main
+main                          ──●──────────────●──────────▶  production
+                               │              │
+feature/p3-pages-publiques ──●──●──●           │
+feature/p4-admin          ──────────●──●       │
+                                     └── merge ──▶ main
 ```
 
 - Interdiction de pousser directement sur `main` (protection de branche GitHub).
-- Toute PR doit passer `lint`, `typecheck` et les tests Playwright.
+- Toute PR doit passer `lint`, `typecheck` et `build`.
 
-### 14.3 Plan de secours
+### 15.3 Coûts d'infrastructure
+
+| Service | Plan | Coût mensuel | Limites |
+|---|---|---|---|
+| Vercel | Hobby (gratuit) | 0 € | 100 GB bandwidth · déploiements illimités |
+| Supabase | Free (gratuit) | 0 € | 500 MB DB · 1 GB Storage · 50 000 req/mois |
+| Domaine `.sn` | Enregistrement | ~5 000 FCFA/an | Renouvellement annuel |
+| **Total Phase 1** | — | **~0 €/mois** | Suffisant pour le lancement |
+
+> Si le trafic dépasse 50 000 visiteurs/mois : Supabase Pro (~25 $/mois) et
+> Vercel Pro (~20 $/mois). Le code est 100 % compatible sans modification.
+
+### 15.4 Plan de secours
 
 | Incident | Action |
 |---|---|
-| Build cassé sur `main` | Rollback immédiat vers le déploiement précédent depuis l'interface Vercel |
-| Supabase injoignable | Pages d'erreur explicites ; ISR continue de servir le cache CDN |
+| Build cassé sur `main` | Rollback immédiat vers le déploiement précédent |
+| Supabase injoignable | Pages d'erreur explicites ; l'ISR continue de servir le cache CDN |
 | Suppression accidentelle de contenu | Restauration depuis la sauvegarde quotidienne Supabase |
-| Compromission d'un compte admin | Désactivation immédiate du compte, révocation des sessions, régénération des clés |
+| Compromission d'un compte admin | Désactivation du compte (`admins.actif = false`), régénération des clés |
 
 ---
 
-## 15. Recette, mise en production et reprise des contenus
+## 16. Recette et checklist de mise en production
 
-### 15.1 Grille de recette (extrait)
+### 16.1 Tests de sécurité obligatoires (à mener avant tout lancement)
 
-| # | Vérification | Attendu |
+| # | Test | Résultat attendu |
 |---|---|---|
-| 1 | Un brouillon est-il invisible publiquement ? | Oui (URL directe = 404) |
-| 2 | Un `responsable_commission` peut-il modifier une autre commission ? | Non |
-| 3 | Un visiteur anonyme peut-il insérer une actualité ? | Non |
-| 4 | Un visiteur anonyme peut-il lire les messages ? | Non |
-| 5 | Le formulaire de contact enregistre-t-il bien ? | Oui, visible en back-office |
-| 6 | Une image de 5 Mo est-elle refusée ? | Oui, message en français |
-| 7 | Le site est-il utilisable au clavier seul ? | Oui |
-| 8 | Le site est-il lisible sur 360 px de large ? | Oui |
-| 9 | Le sitemap est-il valide ? | Oui |
-| 10 | Les contenus réels remplacent-ils les contenus de démo ? | Oui |
+| 1 | Un brouillon est-il visible publiquement (URL directe) ? | **Non** (404) |
+| 2 | Avec la clé anonyme, peut-on insérer une actualité ? | **Non** (RLS refuse) |
+| 3 | Un utilisateur authentifié **non** habilité dans `admins` peut-il écrire ? | **Non** |
+| 4 | Un visiteur anonyme peut-il lire la table `adhesions` ? | **Non** |
+| 5 | Un visiteur anonyme peut-il lire la table `contacts` ? | **Non** |
+| 6 | La clé `service_role` apparaît-elle dans un bundle client ? | **Non** |
+| 7 | Un fichier de 30 Mo est-il refusé à l'upload ? | **Oui**, message en français |
 
-### 15.2 Reprise des contenus
+### 16.2 Checklist de lancement
 
-1. **Inventaire** : lister tous les contenus existants (textes, photos, PV, rapports).
-2. **Numérisation** : scanner les documents papier en PDF, compressés.
-3. **Saisie** : par lot — d'abord les 5 actualités les plus importantes, puis les activités des 3 derniers mois, puis l'historique.
-4. **Validation** : relecture par le Secrétaire exécutif avant publication.
-5. **Objectif de lancement** : au moins **10 actualités**, **15 activités**, **5 documents** et **20 photos** en ligne le jour J.
+**🗄️ Base de données**
+- [ ] Les 11 tables créées avec les bons types
+- [ ] RLS activé sur les 11 tables
+- [ ] Policies testées (lecture publique, insert public, admin complet)
+- [ ] Les 4 buckets créés avec leurs politiques
+- [ ] Seed exécuté — 14 commissions et 8 indicateurs en base
+- [ ] Premier administrateur créé et habilité dans `admins`
 
-### 15.3 Formation
+**🌐 Pages publiques**
+- [ ] Accueil correcte sur mobile et desktop
+- [ ] Les 14 pages de commissions accessibles avec les bonnes données
+- [ ] Formulaire de contact fonctionnel
+- [ ] Formulaire d'adhésion fonctionnel (14 commissions en liste)
+- [ ] Navigation mobile testée sur iOS et Android
+- [ ] Logo CCJP correct dans la Navbar et le Footer
+- [ ] Metadata SEO configurée sur toutes les pages
 
-| Public | Durée | Contenu |
+**🔐 Administration**
+- [ ] Page de connexion fonctionnelle
+- [ ] `/admin` redirige vers `/auth/login` si non connecté
+- [ ] Création d'une actualité (image, statut, commission) fonctionnelle
+- [ ] Publication d'un événement fonctionnelle
+- [ ] Adhésions visibles dans `/admin/adhesions`
+- [ ] Messages visibles dans `/admin/messages`
+- [ ] Upload d'images fonctionnel
+- [ ] Déconnexion redirige vers `/auth/login`
+
+**🚀 Déploiement**
+- [ ] `npm run build` réussi sans erreurs
+- [ ] Les 5 variables d'environnement configurées sur Vercel
+- [ ] Déploiement Vercel vert
+- [ ] HTTPS actif
+- [ ] Domaine personnalisé configuré
+
+**📋 Contenu initial**
+- [ ] Photos de tous les membres du Bureau Exécutif uploadées
+- [ ] Postes et biographies renseignés
+- [ ] Au moins 3 actualités publiées
+- [ ] Au moins 2 événements à venir créés
+- [ ] Indicateurs d'impact configurés
+- [ ] Email de contact et réseaux sociaux renseignés
+- [ ] Logo CCJP haute résolution uploadé
+
+---
+
+## 17. Méthode d'exécution sur Google Antigravity
+
+Antigravity est un IDE agentique (Gemini 3) avec **Agent Manager**, **Plan Mode /
+Fast Mode**, **Artifacts** (captures d'écran, diffs, enregistrements navigateur)
+et un **navigateur intégré**.
+
+### 17.1 Configuration initiale
+
+1. Ouvrir le dépôt `CCJP` dans Antigravity.
+2. Déposer à la racine : `docs/cahier-des-charges-ccjp.md` (le cahier des charges)
+   et `PLAN_IMPLEMENTATION.md` (ce plan). Ils serviront de **mémoire persistante**
+   pour les agents.
+3. Activer le mode **« Agent-assisted »** : l'agent demande confirmation avant
+   chaque action sensible.
+4. Allow-list des commandes : `npm`, `npx`, `node`, `git`, `supabase`.
+5. Refuser par défaut : `rm -rf`, l'accès aux variables de production, les
+   commandes de déploiement direct.
+
+### 17.2 Règles de prompting
+
+| Règle | Pourquoi |
+|---|---|
+| **Une tâche = un prompt** | Reprendre un ID de phase (P3.4) et le coller tel quel |
+| **Toujours joindre le contexte** | « Réfère-toi à PLAN_IMPLEMENTATION.md §6.2 pour le schéma et §8 pour les commissions » |
+| **Plan Mode pour le structurel** | Schéma de base, routes, layout : laisser l'agent produire son plan, le relire, puis l'approuver |
+| **Fast Mode pour le correctif** | Une couleur, un libellé |
+| **Vérifier via Artifacts** | N'accepter une tâche qu'après avoir vu la capture d'écran du navigateur |
+| **Un commit par tâche** | Message de commit reprenant l'ID de la phase |
+
+### 17.3 Modèle de prompt (à copier)
+
+```
+Contexte : projet CCJP — plateforme Next.js 14 + Supabase + Tailwind + Vercel.
+Documents de référence :
+  - docs/cahier-des-charges-ccjp.md (spécifications officielles)
+  - PLAN_IMPLEMENTATION.md (plan d'implémentation)
+Réfère-toi aux sections [X] et [Y] du plan.
+
+Tâche [ID] : [intitulé exact du tableau de phase]
+
+Exigences :
+- [exigence 1]
+- [exigence 2]
+
+Contraintes :
+- Server Components par défaut ; "use client" seulement si nécessaire
+- Tous les textes et messages en FRANÇAIS
+- Validation Zod côté serveur
+- Aucun secret en dur ; aucune clé service_role côté client
+- Respecter strictement la charte graphique CCJP (vert #1B5E20, or #F9A825,
+  rouge #C62828, marine #1A3A5C, crème #F5F0E8)
+- Mobile first, accessible au clavier
+
+Livrable attendu :
+- [fichiers créés/modifiés]
+- Vérification : [commande ou capture d'écran]
+
+Ne fais rien d'autre que cette tâche. Ne modifie pas [fichiers exclus].
+```
+
+### 17.4 Parallélisation possible
+
+| Lot | Tâches simultanables |
+|---|---|
+| **A** | P2.1 (composants UI) + P2.2 (Navbar) |
+| **B** | P3.3 (liste commissions) + P3.5 (liste actualités) — après P3.4 |
+| **C** | P3.10 (contact) + P3.11 (adhésion) |
+| **D** | P4.4 (CRUD actualités) + P4.5 (CRUD événements) |
+
+À **ne pas** paralléliser : tout ce qui touche au schéma de base de données, au
+layout racine ou au middleware (conflits garantis).
+
+### 17.5 Points de vigilance
+
+- Un agent peut « inventer » une table ou un champ absent du schéma : **toujours
+  recouper avec §6.2**.
+- Un agent peut utiliser `auth.role() = 'authenticated'` (politique du cahier des
+  charges) : **lui imposer `public.is_admin()`** — voir §18.1.
+- Un agent peut utiliser la clé `service_role` côté client : **vérifier chaque
+  fichier contenant `createClient`**.
+- Un agent peut écrire les textes en anglais : **exiger le français dans chaque
+  prompt**.
+- Un agent peut choisir une couleur hors charte : **rappeler les 6 hex officiels**.
+
+---
+
+## 18. Écarts, alertes et recommandations
+
+### 18.1 🔴 Alerte de sécurité — politique RLS du cahier des charges
+
+Le cahier des charges propose :
+
+```sql
+CREATE POLICY "Admin full access" ON actualites
+  FOR ALL USING (auth.role() = 'authenticated');
+```
+
+**Problème :** `auth.role() = 'authenticated'` est vrai pour **n'importe quel
+utilisateur connecté**, pas seulement pour les administrateurs. N'importe qui
+parvenant à créer un compte Supabase pourrait modifier ou supprimer l'ensemble des
+actualités du CCJP.
+
+**Solution retenue :** table `admins` + fonction `is_admin()` (§7.1). Coût :
+1 table et 1 fonction. Bénéfice : cloisonnement réel des droits.
+
+**Décision requise du Bureau :** valider cette correction avant le lancement.
+
+### 18.2 🟡 Note sur la version de Next.js
+
+Le cahier des charges spécifie Next.js **14**. Ce plan s'y conforme. Next.js 15
+est compatible sans modification du code produit ; une montée de version pourra
+être envisagée après la mise en production, sans urgence.
+
+### 18.3 🟡 Ce que le cahier des charges ne précise pas
+
+| Point | Proposition de ce plan |
+|---|---|
+| Nom de domaine exact | `ccjp-podor.sn` (à confirmer par le CCJP) |
+| Adresse e-mail de contact | `contact@ccjp-podor.sn` (à confirmer) |
+| Nombre de membres du Bureau Exécutif | À fournir par le CCJP pour le seeding |
+| Liste des projets phares par commission | À fournir par chaque commission |
+| Photos des membres | À collecter |
+| Quartiers de la commune de Podor | À fournir pour la liste déroulante du formulaire d'adhésion |
+
+### 18.4 🟢 Ajouts recommandés (hors cahier des charges)
+
+| Ajout | Bénéfice | Coût |
 |---|---|---|
-| Administrateurs | 2 × 2 h | Publier une actualité, créer une activité, déposer un document, répondre à un message |
-| Responsables de commission | 1 × 2 h | Publier une activité de leur commission uniquement |
-| Bureau | 1 h | Lecture du tableau de bord |
-
-Un **guide d'utilisation en français** (PDF, 10–15 pages avec captures d'écran) sera remis.
-
----
-
-## 16. Maintenance et exploitation
-
-| Périodicité | Action |
-|---|---|
-| Quotidienne | Consultation des messages, modération |
-| Hebdomadaire | Mise à jour des dépendances (`npm audit`), export des données |
-| Mensuelle | Vérification des sauvegardes Supabase, revue des statistiques |
-| Trimestrielle | Revue du plan d'action des commissions, purge des archives |
-| Annuelle | Renouvellement du mandat (mise à jour des membres), audit de sécurité |
-
-**Coûts estimés** :
-
-| Poste | Coût |
-|---|---|
-| Supabase (offre Pro) | ≈ 25 $/mois |
-| Vercel (offre Pro, ou Hobby pour démarrer) | 0 à 20 $/mois |
-| Domaine `.sn` | ≈ 15 000 – 25 000 FCFA/an |
-| **Total** | **≈ 20 000 – 30 000 FCFA/mois** |
+| Table `admins` | Sécurité réelle des droits | 1 table |
+| Recherche plein texte | Retrouver un article facilement | 1 index + 1 fonction |
+| Compteur de vues | Mesure d'audience minimale | 1 colonne |
+| Page 404 / 500 en français | Expérience utilisateur | 2 fichiers |
 
 ---
 
-## 17. Annexes
+## 19. Évolutions futures — Phase 2
 
-### 17.1 Glossaire
+Conformes au cahier des charges, à planifier au cours du mandat 2026–2029.
 
-| Terme | Définition |
-|---|---|
-| **CCJP** | Conseil Consultatif de la Jeunesse de Podor |
-| **CCJS** | Conseil Consultatif des Jeunes du Sénégal (instance nationale, décret n° 2025-1962 du 5 décembre 2025) |
-| **RLS** | *Row Level Security* — sécurité au niveau des lignes dans PostgreSQL |
-| **ISR** | *Incremental Static Regeneration* — régénération statique incrémentale de Next.js |
-| **RSC** | *React Server Components* — composants rendus côté serveur |
-| **Bucket** | Espace de stockage de fichiers dans Supabase Storage |
-| **Séance plénière** | Réunion de l'ensemble des conseillers |
-| **Pénc / Penc** | Lieu traditionnel de concertation, référence culturelle de la délibération au Sénégal |
+| Fonctionnalité | Description | Technologies | Priorité |
+|---|---|---|---|
+| **Notifications temps réel** | Notifier les admins dès qu'une adhésion ou un message arrive ; badge dans la sidebar | Supabase Realtime, WebSocket | **Haute** |
+| **Notifications & Newsletter** | Emails transactionnels (confirmation d'adhésion, nouveaux événements) ; newsletter trimestrielle | Resend API | **Haute** |
+| **Tableau de bord analytique** | Vercel Analytics, graphiques d'engagement par commission, rapport mensuel pour le Bureau Exécutif | Vercel Analytics, Recharts | Moyenne |
+| **Carte interactive de Podor** | Cartographie des projets par commission, filtrage | Mapbox / Leaflet.js | Moyenne |
+| **Médiathèque enrichie** | Galerie interactive, intégration YouTube, documentaire de fin de mandat | YouTube API | Moyenne |
+| **Génération PDF** | Rapports d'activité, bulletins d'adhésion, rapport annuel sur l'état de la jeunesse (Commission 13) | react-pdf / Puppeteer | Moyenne |
+| **Multilinguisme** | Traduction en **Pulaar** (langue locale de Podor) et en anglais pour la diaspora | next-intl | Basse |
+| **Application mobile (PWA)** | PWA installable, notifications push, fonctionnement hors ligne partiel | Service Worker, Push | Basse |
 
-### 17.2 Liste des routes
+---
+
+## 20. Annexes
+
+### 20.1 Liste complète des routes
 
 **Publiques**
 ```
-/                              Accueil
-/actualites                    Liste des actualités
-/actualites/[slug]             Fiche actualité
-/ccjp                          Présentation, missions, organisation
-/ccjp/fonctionnement           Mandat, séances plénières, devenir conseiller
-/ccjp/bureau                   Bureau exécutif
-/ccjp/conseillers              Annuaire des conseillers
-/ccjp/commissions              Grille des commissions
-/ccjp/commissions/[slug]       Fiche commission
-/activites                     Activités (filtrables)
-/activites/[slug]              Fiche activité
-/agenda                        Agenda / calendrier
-/ressources                    Documents téléchargeables
-/galerie                       Galerie photo
-/contact                       Contact
-/proposer                      Proposer une idée
-/recherche                     Recherche
-/mentions-legales              Mentions légales
-/confidentialite               Politique de confidentialité
+/                              Accueil (ISR 60s)
+/a-propos                      À propos (SSG)
+/commissions                   Liste des 14 commissions (ISR 3600s)
+/commissions/[slug]            Détail d'une commission (ISR 1800s)
+/actualites                    Liste des actualités (ISR 120s)
+/actualites/[slug]             Article complet (ISR 300s)
+/evenements                    Calendrier des événements (ISR 300s)
+/evenements/[id]               Détail d'un événement (ISR 600s)
+/programme                     Programme Triennal 2026-2029 (SSG)
+/bureau-executif               Membres du Bureau Exécutif (ISR 3600s)
+/contact                       Formulaire de contact (Client)
+/rejoindre                     Formulaire d'adhésion (Client)
 /sitemap.xml                   Plan du site
 /robots.txt                    Directives robots
 ```
 
 **Administration**
 ```
-/admin                         Tableau de bord
-/admin/connexion               Connexion
+/auth/login                    Connexion
+/admin                         Dashboard
 /admin/actualites              Gestion des actualités
-/admin/activites               Gestion des activités
-/admin/agenda                  Gestion de l'agenda
-/admin/commissions             Gestion des commissions
-/admin/membres                 Gestion des membres
-/admin/documents               Gestion des documents
-/admin/galerie                 Gestion de la galerie
-/admin/messages                Modération
+/admin/evenements              Gestion des événements
+/admin/commissions             Gestion des commissions + projets phares
+/admin/membres                 Gestion du Bureau Exécutif
+/admin/adhesions               Traitement des demandes d'adhésion
+/admin/messages                Messages de contact
+/admin/media                   Médiathèque
 /admin/parametres              Paramètres du site
-/admin/parametres/utilisateurs Gestion des comptes
 ```
 
-### 17.3 Checklist de lancement
+### 20.2 Migrations SQL
 
-- [ ] Migrations appliquées sur le projet Supabase de production
-- [ ] Buckets Storage créés et politiques en place
-- [ ] Compte `admin` créé, 2FA activé
-- [ ] Toutes les variables d'environnement renseignées sur Vercel
-- [ ] Domaine configuré, HTTPS actif
-- [ ] Aucun secret dans le dépôt Git
-- [ ] Contenus réels saisis et validés
-- [ ] Mentions légales et politique de confidentialité publiées
-- [ ] Sitemap et robots valides
-- [ ] Audit Lighthouse ≥ 90 sur mobile
-- [ ] Tests Playwright passent
-- [ ] Administrateurs formés, guide remis
-- [ ] Sauvegarde initiale effectuée
-- [ ] PV de recette signé par le Bureau
+| Fichier | Contenu |
+|---|---|
+| `supabase/migrations/0001_init_schema.sql` | 11 tables, index, triggers, fonction de recherche |
+| `supabase/migrations/0002_rls_policies.sql` | Activation RLS, fonction `is_admin()`, toutes les politiques |
+| `supabase/migrations/0003_seed_data.sql` | 14 commissions, 8 indicateurs, 11 paramètres |
+| `supabase/migrations/0004_storage_buckets.sql` | 4 buckets et leurs politiques |
 
-### 17.4 Questions ouvertes pour le Bureau du CCJP
+### 20.3 Glossaire
 
-1. Quelle est la **liste définitive des commissions** ? (7 proposées par défaut)
-2. Combien de **conseillers** et quelle est la **durée du mandat** ?
-3. Le CCJP dispose-t-il déjà d'un **logo** et d'une **charte graphique** ?
-4. Quel **nom de domaine** sera retenu ? (`ccjp-podor.sn` ?)
-5. Quels **réseaux sociaux** doivent être reliés ?
-6. Souhaite-vous une **version en pulaar et/ou en wolof** dès la V1 ou en V2 ?
-7. Les **documents officiels** (PV, statuts) sont-ils tous publics ou certains réservés ?
-8. Qui seront les **administrateurs** de la plateforme, et avec quel rôle ?
+| Terme | Définition |
+|---|---|
+| **CCJP** | Conseil Consultatif des Jeunes de Podor |
+| **Bureau Exécutif** | Instance dirigeante élue du CCJP |
+| **Commission** | Groupe technique thématique (14 au sein du CCJP) |
+| **RLS** | *Row Level Security* — sécurité au niveau des lignes dans PostgreSQL |
+| **ISR** | *Incremental Static Regeneration* — régénération statique incrémentale |
+| **SSG** | *Static Site Generation* — génération statique à la construction |
+| **SSR** | *Server-Side Rendering* — rendu à chaque requête |
+| **Server Action** | Fonction serveur appelable directement depuis un composant React |
+| **Bucket** | Espace de stockage de fichiers dans Supabase Storage |
+| **Seed** | Jeu de données initial inséré en base |
 
----
+### 20.4 Ordre d'exécution recommandé
 
-## 18. Prochaines étapes immédiates
-
-| Étape | Responsable | Échéance |
-|---|---|---|
-| 1. Valider ce plan (périmètre, commissions, calendrier) | Bureau du CCJP | Semaine 1 |
-| 2. Fournir les documents de cadrage (statuts, liste des commissions, membres, logo) | Secrétariat | Semaine 1 |
-| 3. Créer les comptes Supabase et Vercel | Administrateur | Semaine 1 |
-| 4. Lancer le Sprint 0 sur Antigravity | Équipe technique | Semaine 1 |
-| 5. Première recette (Sprint 3) | Bureau | Semaine 6 |
-| 6. Mise en production | Équipe technique | Semaine 9 |
+```
+Phase 0  ──▶  Phase 1  ──▶  Phase 2  ──▶  Phase 3  ──▶  Phase 4  ──▶  Phase 5
+Setup        BDD + RLS     UI + Layout   Pages        Admin        Deploy
+2 j          2 j           3 j           5 j          5 j          2 j
+                                              │
+                                              └──▶ Mise en ligne partielle possible ici (fin S2)
+```
 
 ---
 
-*Document préparé pour le Conseil Consultatif de la Jeunesse de Podor. À compléter avec les documents officiels de l'organisation (voir §2.4).*
-*
-l'organisation (voir §2.4).*
+*Plan d'implémentation v2.0 — aligné sur le Cahier des Charges CCJP v1.0 (2025).*
+*Conseil Consultatif des Jeunes de Podor — Écoute · Participation · Impact*
