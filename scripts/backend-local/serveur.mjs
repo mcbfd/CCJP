@@ -115,7 +115,7 @@ function json(res, code, corps) {
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+  "access-control-allow-methods": "GET,HEAD,POST,PATCH,DELETE,OPTIONS",
   "access-control-allow-headers":
     "authorization,content-type,apikey,prefer,x-client-info",
   "access-control-expose-headers": "content-range,content-profile,preference-applied",
@@ -135,6 +135,55 @@ const CORS = {
  * échoue donc avec l'erreur 42501, alors que le même INSERT sans `RETURNING`
  * aboutit. C'est exactement le comportement de Supabase en production.
  */
+/**
+ * L'en-tête `Prefer` demande-t-il un décompte exact (`count=exact`) ?
+ *
+ * PostgREST renvoie alors le nombre TOTAL de lignes correspondant au filtre,
+ * indépendamment de `limit`/`offset`, dans l'en-tête `content-range` sous la
+ * forme `0-<dernière ligne>/<total>`. C'est ce que lit supabase-js pour
+ * renseigner `count` — indispensable aux compteurs du back-office.
+ */
+/**
+ * Le client demande-t-il un OBJET NU plutôt qu'un tableau ?
+ *
+ * supabase-js envoie `Accept: application/vnd.pgrst.object+json` quand on
+ * enchaîne `.single()` ou `.maybeSingle()`. PostgREST répond alors :
+ *   - 1 ligne    → 200 avec l'objet lui-même (pas un tableau) ;
+ *   - 0 ligne    → 406 Not Acceptable (supabase-js traduit ça en `null`) ;
+ *   - plusieurs  → 406 également.
+ *
+ * Sans ce support, `.single()` et `.maybeSingle()` renvoient un tableau :
+ * `data.id` vaudrait alors `undefined` alors que la requête a réussi. C'est un
+ * piège silencieux qui touche toutes les lectures unitaires du projet.
+ */
+function veutObjetNu(req) {
+  const accept = String(req.headers.accept ?? "");
+  return accept.includes("application/vnd.pgrst.object+json");
+}
+
+/**
+ * Sérialise le résultat d'une écriture (INSERT/UPDATE/DELETE) en respectant
+ * l'en-tête `Accept`, exactement comme PostgREST.
+ *
+ * - `Prefer: return=representation` absent → corps vide (201/200) ;
+ * - présent + `Accept: …pgrst.object+json` → l'unique ligne en objet nu,
+ *   ce qu'attend `.single()` après un `.insert().select()` ;
+ * - présent sans cet Accept → le tableau des lignes.
+ */
+function serialiserEcriture(req, rows) {
+  if (!veutRepresentation(req)) return { corps: [], nu: false };
+  if (veutObjetNu(req)) {
+    if (rows.length === 0) return { corps: null, nu: true, vide: true };
+    return { corps: rows[0], nu: true };
+  }
+  return { corps: rows, nu: false };
+}
+
+function veutCompteExact(req) {
+  const prefer = String(req.headers.prefer ?? req.headers["prefer"] ?? "");
+  return /(^|,\s*)count=exact/i.test(prefer);
+}
+
 function veutRepresentation(req) {
   const prefer = String(req.headers.prefer ?? req.headers["prefer"] ?? "");
   return /(^|,\s*)return=representation/i.test(prefer);
@@ -306,7 +355,11 @@ async function handlerRest(req, res, table, auth) {
   const ou = clauses.length ? ` where ${clauses.join(" and ")}` : "";
 
   // ---- GET : lecture ----
-  if (req.method === "GET") {
+  // HEAD est traité exactement comme GET, seul le corps de réponse diffère
+  // (vide). C'est le mécanisme qu'utilise supabase-js pour les requêtes de
+  // décompte (`head: true`) : sans ce support, tous les compteurs du
+  // back-office renverraient 405.
+  if (req.method === "GET" || req.method === "HEAD") {
     const select = colonnesSelection(url.searchParams.get("select"), valides);
     const order = url.searchParams.get("order");
     const limite = url.searchParams.get("limit");
@@ -323,6 +376,12 @@ async function handlerRest(req, res, table, auth) {
     // `limit` et `offset` sont ajoutés SÉPARÉMENT, avec leur propre
     // placeholder : PostgreSQL exige que le nombre de paramètres fournis
     // corresponde exactement au nombre de $n utilisés dans la requête.
+    // Les paramètres de la clause WHERE, figés AVANT l'ajout de limit/offset :
+    // le décompte exact réutilise la même clause WHERE et n'a donc besoin que
+    // de ceux-là. Réutiliser `params` tel quel ferait échouer la requête avec
+    // « bind message supplies N parameters, but prepared statement requires 0 ».
+    const paramsFiltre = [...params];
+
     if (limite) {
       sql += ` limit $${params.length + 1}`;
       params.push(Number(limite));
@@ -334,12 +393,55 @@ async function handlerRest(req, res, table, auth) {
 
     try {
       const r = await executer({ sql, params, role: auth.role, sub: auth.sub });
+
+      // Total réel (hors limit/offset) quand le client le demande.
+      let total = r.rowCount;
+      if (veutCompteExact(req)) {
+        try {
+          const compte = await executer({
+            sql: `select count(*)::int as n from public."${table}"${ou}`,
+            params: paramsFiltre,
+            role: auth.role,
+            sub: auth.sub,
+          });
+          total = Number(compte.rows[0]?.n ?? r.rowCount);
+        } catch (eCompte) {
+          console.error("[rest] décompte exact échoué :", eCompte.message);
+        }
+      }
+
+      const derniere = r.rowCount === 0 ? "*" : String(r.rowCount - 1);
+
+      // Réponse en objet nu quand le client l'a demandé (.single/.maybeSingle)
+      if (veutObjetNu(req)) {
+        if (r.rowCount !== 1) {
+          // PostgREST renvoie 406 ; supabase-js le transforme en `null` pour
+          // `.maybeSingle()` et en erreur pour `.single()`.
+          return json(res, 406, {
+            code: "PGRST116",
+            message:
+              r.rowCount === 0
+                ? "Aucune ligne trouvée."
+                : "Plusieurs lignes trouvées.",
+          });
+        }
+        const corps = JSON.stringify(r.rows[0]);
+        res.writeHead(200, {
+          "content-type": "application/json; charset=utf-8",
+          "content-range": `${derniere}/${total}`,
+          ...CORS,
+        });
+        return res.end(req.method === "HEAD" ? "" : corps);
+      }
+
+      const corps = JSON.stringify(r.rows);
       res.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
-        "content-range": `0-${Math.max(0, r.rowCount - 1)}/${r.rowCount}`,
+        "content-range": `${derniere}/${total}`,
         ...CORS,
       });
-      return res.end(JSON.stringify(r.rows));
+      // HEAD : en-têtes seuls, corps vide.
+      return res.end(req.method === "HEAD" ? "" : corps);
     } catch (e) {
       return json(res, 400, { code: e.code ?? "PGRST100", message: e.message });
     }
@@ -379,7 +481,9 @@ async function handlerRest(req, res, table, auth) {
 
     try {
       const r = await executer({ sql, params: valeurs, role: auth.role, sub: auth.sub });
-      return json(res, 201, retour ? r.rows : []);
+      const rep = serialiserEcriture(req, r.rows);
+      if (rep.vide) return json(res, 406, { code: "PGRST116", message: "Aucune ligne renvoyée." });
+      return json(res, 201, rep.corps);
     } catch (e) {
       return json(res, 400, {
         code: e.code ?? "PGRST100",
@@ -399,8 +503,16 @@ async function handlerRest(req, res, table, auth) {
     const cles = Object.keys(corps).filter((c) => valides.has(c));
     if (cles.length === 0) return json(res, 400, { message: "Aucune colonne valide." });
 
-    const valeurs = cles.map((c) => corps[c]);
-    const assignations = cles.map((c, i) => `"${c}" = $${i + 1}`);
+    // ⚠️ Les placeholders du SET doivent être décalés APRÈS ceux du WHERE.
+    // La clause WHERE est déjà construite avec $1…$n dans `params` ; si le SET
+    // reprenait à $1, les deux se chevaucheraient et PostgreSQL recevrait la
+    // valeur du SET là où il attend un UUID de filtre :
+    // « invalid input syntax for type uuid: "Titre modifié" ».
+    const valeursSet = cles.map((c) => corps[c]);
+    const assignations = cles.map(
+      (c, i) => `"${c}" = $${params.length + i + 1}`,
+    );
+    const valeurs = [...params, ...valeursSet];
     // Même règle que pour l'INSERT : `returning` seulement si demandé,
     // car la clause RETURNING est soumise à la politique SELECT.
     const retour = veutRepresentation(req) ? " returning *" : "";
@@ -408,7 +520,9 @@ async function handlerRest(req, res, table, auth) {
 
     try {
       const r = await executer({ sql, params: valeurs, role: auth.role, sub: auth.sub });
-      return json(res, 200, retour ? r.rows : []);
+      const rep = serialiserEcriture(req, r.rows);
+      if (rep.vide) return json(res, 406, { code: "PGRST116", message: "Aucune ligne renvoyée." });
+      return json(res, 200, rep.corps);
     } catch (e) {
       return json(res, 400, { code: e.code ?? "PGRST100", message: e.message });
     }
@@ -421,7 +535,9 @@ async function handlerRest(req, res, table, auth) {
     const sql = `delete from public."${table}"${ou}${retour}`;
     try {
       const r = await executer({ sql, params, role: auth.role, sub: auth.sub });
-      return json(res, 200, retour ? r.rows : []);
+      const rep = serialiserEcriture(req, r.rows);
+      if (rep.vide) return json(res, 406, { code: "PGRST116", message: "Aucune ligne renvoyée." });
+      return json(res, 200, rep.corps);
     } catch (e) {
       return json(res, 400, { code: e.code ?? "PGRST100", message: e.message });
     }
