@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# backend local de developpement (voir PLAN_IMPLEMENTATION.md §22)
+/.stockage-local
+
 # vercel
 .vercel
 

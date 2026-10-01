@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/types";
 
 /**
  * Client Supabase PRIVILÉGIÉ (Service Role).
@@ -31,7 +32,7 @@ export function createAdminClient() {
     );
   }
 
-  return createSupabaseClient(url, serviceRoleKey, {
+  return createSupabaseClient<Database>(url, serviceRoleKey, {
     auth: {
       // Pas de persistance de session : ce client est sans état.
       autoRefreshToken: false,

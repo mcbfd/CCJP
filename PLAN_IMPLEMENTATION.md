@@ -45,6 +45,8 @@
 18. [Écarts, alertes et recommandations](#18-écarts-alertes-et-recommandations)
 19. [Évolutions futures — Phase 2](#19-évolutions-futures--phase-2)
 20. [Annexes](#20-annexes)
+21. [Corrections de typage constatées en Phase 2](#21-corrections-de-typage-constatées-en-phase-2)
+22. [Backend local de développement (ajout assumé)](#22-backend-local-de-développement-ajout-assumé)
 
 ---
 
@@ -111,9 +113,11 @@ Rejoindre le CCJP.
 Dashboard · Actualités · Événements · Commissions · Membres (Bureau Exécutif) ·
 Adhésions · Messages · Médiathèque · Paramètres.
 
-**Base de données — 10 tables**
-`commissions` · `membres_bureau` · `actualites` · `evenements` · `projets_phares` ·
-`adhesions` · `contacts` · `medias` · `statistiques_indicateurs` · `parametres`.
+**Base de données — 11 tables**
+10 tables du cahier des charges : `commissions` · `membres_bureau` · `actualites` ·
+`evenements` · `projets_phares` · `adhesions` · `contacts` · `medias` ·
+`statistiques_indicateurs` · `parametres`.
++ 1 table `admins`, ajout de sécurité de ce plan (§7.1).
 
 ### 2.2 Hors périmètre (Phase 2 — voir §19)
 
@@ -129,6 +133,10 @@ Trois ajouts, tous justifiés en §18 :
 | **Table `admins`** | Corrige une faille de sécurité dans la politique RLS du cahier des charges (voir §18.1) |
 | **Recherche plein texte** sur les actualités | Utile dès le lancement, coût d'implémentation très faible |
 | **Compteur de vues** sur les articles | Mesure d'audience minimale en attendant la Phase 2 |
+| **Backend local de développement** | Permet de développer et tester sans compte Supabase — voir §22 |
+
+> Le quatrième ajout est un outil de **développement uniquement**. Il ne
+> change rien au déploiement en production, qui reste sur Supabase.
 
 ---
 
@@ -1306,46 +1314,150 @@ npm install date-fns slugify sonner recharts
 
 ### Phase 1 — Base de données & Seed CCJP · 2 jours
 
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| P1.1 | Appliquer la migration 0001 (11 tables) | Toutes les tables existent |
-| P1.2 | Appliquer la migration 0002 (RLS + is_admin) | **12/12 tables avec RLS activée** |
-| P1.3 | Appliquer la migration 0003 (seed) | 14 commissions + 8 indicateurs + 11 paramètres |
-| P1.4 | Créer les 4 buckets Storage + politiques | Upload test réussi |
-| P1.5 | Créer le premier compte admin et l'habiliter | Connexion possible |
-| P1.6 | Générer les types TypeScript | `types/index.ts` à jour |
-| P1.7 | **Test de sécurité** : avec la clé anonyme, vérifier qu'on ne peut ni lire les brouillons, ni écrire dans `actualites` | Aucun accès non autorisé |
+| ID | Tâche | Critère d'acceptation | État |
+|---|---|---|---|
+| P1.1 | Appliquer la migration 0001 (11 tables) | Toutes les tables existent | ✅ local |
+| P1.2 | Appliquer la migration 0002 (RLS + is_admin) | **11/11 tables avec RLS activée** | ✅ local |
+| P1.3 | Appliquer la migration 0003 (seed) | 14 commissions + 8 indicateurs + 11 paramètres | ✅ local |
+| P1.4 | Créer les 4 buckets Storage + politiques | Upload test réussi | ✅ local |
+| P1.5 | Créer le premier compte admin et l'habiliter | Connexion possible | ✅ local |
+| P1.6 | Générer les types TypeScript | `types/index.ts` à jour | ✅ |
+| P1.7 | **Test de sécurité** : avec la clé anonyme, vérifier qu'on ne peut ni lire les brouillons, ni écrire dans `actualites` | Aucun accès non autorisé | ✅ |
+
+> **État d'avancement Phase 1.** Les 7 tâches sont satisfaites **en local** :
+> les 4 migrations s'appliquent sur un vrai PostgreSQL, la RLS est
+> réellement appliquée (57 assertions sur 3 profils + révocation), les
+> buckets et leurs politiques fonctionnent, et le premier admin se connecte.
+> Voir §22 pour le backend local qui rend cela possible sans compte Supabase.
+>
+> **Reste à faire sur le cloud** : reproduire la même chose sur le projet
+> Supabase de production (procédure en §11). Le code applicatif est
+> identique dans les deux cas — seul `.env.local` change.
+
+#### Procédure de mise en route Phase 1 (à exécuter une seule fois)
+
+Ces 5 étapes requièrent un compte Supabase. Elles sont la seule partie de la
+Phase 1 qui ne peut pas être automatisée depuis le dépôt.
+
+**Étape 1 — Créer le projet Supabase**
+
+Dashboard → « New project ». Choisir la région la plus proche du Sénégal
+(`eu-west-1`, Irlande, ou `eu-central-1`). Relever le **Project ref** (dans
+l'URL : `https://supabase.com/dashboard/project/<ref>`).
+
+**Étape 2 — Renseigner `.env.local`**
+
+```bash
+cp .env.local.example .env.local
+```
+
+Puis Dashboard → Settings → API, et copier :
+
+| Variable | Où la trouver |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` `public` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `service_role` `secret` — ⚠️ jamais préfixée `NEXT_PUBLIC_` |
+| `SUPABASE_PROJECT_ID` | le Project ref de l'étape 1 |
+
+**Étape 3 — Appliquer les 4 migrations, dans cet ordre**
+
+SQL Editor → « New query », puis coller et exécuter le contenu de chaque
+fichier **l'un après l'autre**, en attendant la fin de chaque exécution :
+
+1. `supabase/migrations/0001_init_schema.sql` — crée les 11 tables
+2. `supabase/migrations/0002_rls_policies.sql` — active la RLS, `is_admin()`
+3. `supabase/migrations/0003_seed_data.sql` — 14 commissions, 8 indicateurs, 11 paramètres
+4. `supabase/migrations/0004_storage_buckets.sql` — 4 buckets + politiques Storage
+
+> ⚠️ **L'ordre est obligatoire, pas conseillé.** Il a été vérifié sur un vrai
+> serveur PostgreSQL : appliquer `0002` avant `0001` échoue sur
+> `relation "public.admins" does not exist`, et `0004` avant `0002` échoue sur
+> `function public.is_admin() does not exist`.
+
+**Étape 4 — Vérifier**
+
+Exécuter `supabase/verification-apres-migration.sql` (lecture seule). Les
+13 contrôles doivent tous afficher `OK` : 11 tables, RLS 11/11, 24 politiques,
+14 commissions (1 à 14), 8 indicateurs, 11 paramètres, 4 buckets, index de
+recherche, `is_admin()` en `security definer`, 6 triggers, icônes et couleurs
+conformes.
+
+**Étape 5 — Créer le premier administrateur**
+
+a. Authentication → Users → « Add user ». Email + mot de fort, cocher
+   « Auto Confirm User ». Relever l'UUID affiché.
+
+b. Puis, en remplaçant l'UUID :
+
+```sql
+insert into public.admins (user_id, email, nom)
+values ('UUID-RELEVÉ-ICI', 'president@ccjp-podor.sn', 'Président du CCJP');
+```
+
+c. Régénérer les types TypeScript :
+
+```bash
+npm run db:types
+```
+
+> ⚠️ Un compte dans `auth.users` **ne suffit pas** : sans ligne dans
+> `public.admins`, il est authentifié mais n'a aucun droit d'écriture. C'est
+> exactement la faille corrigée par la migration 0002 (voir `docs/SECURITE.md`).
 
 ### Phase 2 — Composants UI & Layout · 3 jours
 
 | ID | Tâche | Critère d'acceptation |
 |---|---|---|
-| P2.1 | `Button`, `Card`, `Badge`, `SectionTitle`, `StatCard` | Composants rendus avec les 4 variantes |
-| P2.2 | `Navbar` responsive avec menu burger | Utilisable sur 360 px |
-| P2.3 | `Footer` complet (navigation, commissions, contact, réseaux, devise) | Tous les liens fonctionnels |
-| P2.4 | `CommissionCard` (icône, numéro, nom, couleur) | Les 14 cartes s'affichent |
-| P2.5 | Layout public `(public)/layout.tsx` | Navbar + Footer sur toutes les pages |
-| P2.6 | `AdminSidebar` + layout admin | 9 modules listés |
-| P2.7 | `globals.css` + polices (Inter + Playfair Display) | Polices auto-hébergées |
-| P2.8 | `lib/supabase/{client,server,admin}.ts` | Les 3 clients fonctionnent |
+| P2.1 | `Button`, `Card`, `Badge`, `SectionTitle`, `StatCard` | Composants rendus avec les 4 variantes | ✅ |
+| P2.2 | `Navbar` responsive avec menu burger | Utilisable sur 360 px | ✅ |
+| P2.3 | `Footer` complet (navigation, commissions, contact, réseaux, devise) | Tous les liens fonctionnels | ✅ |
+| P2.4 | `CommissionCard` (icône, numéro, nom, couleur) | Les 14 cartes s'affichent | ✅ |
+| P2.5 | Layout public `(public)/layout.tsx` | Navbar + Footer sur toutes les pages | ✅ |
+| P2.6 | `AdminSidebar` + layout admin | 9 modules listés | ✅ |
+| P2.7 | `globals.css` + polices (Inter + Playfair Display) | Polices auto-hébergées | ✅ |
+| P2.8 | `lib/supabase/{client,server,admin}.ts` | Les 3 clients fonctionnent | ✅ |
+
+> **État d'avancement Phase 2 — livré.** `tsc --noEmit`, `next lint` et
+> `next build` passent (routes `/` et `/admin` prérendues en statique).
+> Voir §20 pour les deux corrections de typage qu'il a fallu apporter.
 
 ### Phase 3 — Pages publiques · 5 jours
 
-| ID | Tâche | Critère d'acceptation |
-|---|---|---|
-| P3.1 | Page d'accueil — 10 sections | Rendu conforme §9.1 |
-| P3.2 | `/a-propos` | Mission, vision, valeurs affichées |
-| P3.3 | `/commissions` — grille des 14 | Couleurs et icônes correctes |
-| P3.4 | `/commissions/[slug]` | Description, vision, axes, projets, actualités liées |
-| P3.5 | `/actualites` — liste paginée + filtre commission | Pagination et filtre fonctionnels |
-| P3.6 | `/actualites/[slug]` | Article complet + partage + vues |
-| P3.7 | `/evenements` + `[id]` | Liste, calendrier, export `.ics` |
-| P3.8 | `/programme` | 3 phases + projets phares par commission |
-| P3.9 | `/bureau-executif` | Membres triés par `ordre` |
-| P3.10 | `/contact` — formulaire validé | Message inséré en base |
-| P3.11 | `/rejoindre` — formulaire d'adhésion | Adhésion insérée, 14 commissions en liste |
-| P3.12 | `sitemap.ts`, `robots.ts`, `not-found.tsx` | Fichiers valides |
-| P3.13 | Métadonnées SEO de toutes les pages | Titre et description par page |
+> **État d'avancement Phase 3 — livré.** Les 13 tâches sont faites :
+> `tsc --noEmit`, `next lint` passent, et les 12 pages publiques répondent
+> en HTTP 200 sur la pile locale (voir §20 pour les trois pièges résolus :
+> `target` ES5, Server Action dans un fichier client, et `RETURNING` du
+> backend local).
+>
+> **Point de conception — sécurité des brouillons.** Aucun filtre
+> `statut='publie'` n'est appliqué côté application : la politique RLS
+> « Actualités publiées lisibles publiquement » (migration 0002) garantit
+> déjà qu'un visiteur anonyme ne voit que les publiés. Un brouillon renvoie
+> donc un **404**, et non un accès interdit — ce qui évite en outre de
+> révéler son existence. Vérifié : `/actualites/<publié>` → 200,
+> `/actualites/<brouillon>` → 404.
+>
+> **Point de conception — formulaires.** Les Server Actions sont isolées dans
+> des fichiers `actions.ts` portant la directive `"use server"`. Les placer
+> dans le composant `"use client"` fait bundler `next/headers` côté
+> navigateur et casse le build (§20).
+
+| ID | Tâche | Critère d'acceptation | État |
+|---|---|---|---|
+| P3.1 | Page d'accueil — 10 sections | Rendu conforme §9.1 | ✅ |
+| P3.2 | `/a-propos` | Mission, vision, valeurs affichées | ✅ |
+| P3.3 | `/commissions` — grille des 14 | Couleurs et icônes correctes | ✅ |
+| P3.4 | `/commissions/[slug]` | Description, vision, axes, projets, actualités liées | ✅ |
+| P3.5 | `/actualites` — liste paginée + filtre commission | Pagination et filtre fonctionnels | ✅ |
+| P3.6 | `/actualites/[slug]` | Article complet + partage + vues | ✅ (vues : Phase 4) |
+| P3.7 | `/evenements` + `[id]` | Liste, calendrier, export `.ics` | ✅ |
+| P3.8 | `/programme` | 3 phases + projets phares par commission | ✅ |
+| P3.9 | `/bureau-executif` | Membres triés par `ordre` | ✅ |
+| P3.10 | `/contact` — formulaire validé | Message inséré en base | ✅ |
+| P3.11 | `/rejoindre` — formulaire d'adhésion | Adhésion insérée, 14 commissions en liste | ✅ |
+| P3.12 | `sitemap.ts`, `robots.ts`, `not-found.tsx` | Fichiers valides | ✅ (+ `error.tsx`) |
+| P3.13 | Métadonnées SEO de toutes les pages | Titre et description par page | ✅ |
 
 ### Phase 4 — Espace d'administration · 5 jours
 
@@ -1483,7 +1595,7 @@ EMAIL_FROM=contact@ccjp-podor.sn
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "@supabase/supabase-js": "^2.45.0",
-    "@supabase/ssr": "^0.5.0",
+    "@supabase/ssr": "^0.12.7",
     "tailwindcss": "^3.4.0",
     "lucide-react": "^0.454.0",
     "react-hook-form": "^7.53.0",
@@ -1816,7 +1928,51 @@ Conformes au cahier des charges, à planifier au cours du mandat 2026–2029.
 | `supabase/migrations/0003_seed_data.sql` | 14 commissions, 8 indicateurs, 11 paramètres |
 | `supabase/migrations/0004_storage_buckets.sql` | 4 buckets et leurs politiques |
 
-### 20.3 Glossaire
+### 20.3 Pièges résolus pendant l'implémentation
+
+Trois problèmes rencontrés et corrigés en Phase 3, à connaître avant de
+reprendre le projet :
+
+**a) `tsconfig.json` sans `target` → itération de `Map` impossible.**
+Sans `target` explicite, TypeScript reste en ES5 et refuse `for...of` sur un
+`Map`, le spread d'itérables, etc. (`TS2802`). Corrigé en ajoutant
+`"target": "ES2017"` — cohérent avec `"lib": ["dom", "dom.iterable", "esnext"]`
+et avec ce que Node exécute côté serveur. Attention : après modification du
+`tsconfig`, supprimer `tsconfig.tsbuildinfo`, sinon `tsc` réutilise le cache
+et continue d'afficher les anciennes erreurs.
+
+**b) Une Server Action ne doit pas vivre dans un fichier `"use client"`.**
+Les Server Actions de `/contact` et `/rejoindre` étaient d'abord écrites
+directement dans les composants clients. Le `import("@/lib/supabase/server")`
+était alors bundlé pour le navigateur, et le build échouait sur :
+« You're importing a component that needs next/headers. That only works in a
+Server Component which is not supported in the pages/ directory. » —
+avec pour seul indice une trace d'import partant de `pages/_error`, ce qui
+fait chercher au mauvais endroit.
+
+Correctif : un fichier `actions.ts` dédié par formulaire, portant la directive
+`"use server"` en tête. Le composant client se contente d'importer l'action.
+Les types d'état vivent dans un `types.ts` séparé, car un module
+`"use server"` ne peut exporter que des fonctions asynchrones.
+
+**c) `RETURNING` est soumis à la politique SELECT — le backend local le
+surajoutait.**
+Un `INSERT ... RETURNING *` évalue **aussi** la politique SELECT de la table.
+Sur `contacts` et `adhesions`, la lecture est réservée aux administrateurs :
+un INSERT anonyme échouait donc avec `42501`, alors que le même INSERT sans
+`RETURNING` aboutissait. PostgREST ne pose la clause `RETURNING` que si le
+client envoie `Prefer: return=representation` ; le backend local de
+développement l'ajoutait systématiquement.
+
+Corrigé dans `scripts/backend-local/serveur.mjs` par un helper
+`veutRepresentation(req)` qui lit l'en-tête `Prefer`, appliqué aux trois
+méthodes d'écriture (POST, PATCH, DELETE). Côté application, la règle qui
+découle de ce comportement est simple : **ne jamais enchaîner `.select()`
+sur un `.insert()` dans une Server Action publique**, sous peine de se heurter
+à la politique SELECT. Vérifié : `supabase-js` n'envoie pas
+`return=representation` par défaut, donc `.insert()` seul fonctionne.
+
+### 20.4 Glossaire
 
 | Terme | Définition |
 |---|---|
@@ -1831,7 +1987,7 @@ Conformes au cahier des charges, à planifier au cours du mandat 2026–2029.
 | **Bucket** | Espace de stockage de fichiers dans Supabase Storage |
 | **Seed** | Jeu de données initial inséré en base |
 
-### 20.4 Ordre d'exécution recommandé
+### 20.5 Ordre d'exécution recommandé
 
 ```
 Phase 0  ──▶  Phase 1  ──▶  Phase 2  ──▶  Phase 3  ──▶  Phase 4  ──▶  Phase 5
@@ -1842,6 +1998,179 @@ Setup        BDD + RLS     UI + Layout   Pages        Admin        Deploy
 ```
 
 ---
+
+---
+
+## 21. Corrections de typage constatées en Phase 2
+
+Deux défauts ont été détectés et corrigés pendant la Phase 2. Ils sont
+consignés ici parce qu'ils conditionnent la fiabilité du typage pour toutes
+les phases suivantes.
+
+### 21.1 `@supabase/ssr` 0.5.2 est incompatible avec `@supabase/supabase-js` 2.117.2
+
+**Symptôme.** Le client Supabase perdait tout son typage : `supabase
+.from("parametres").select("cle, valeur")` renvoyait `never[]`, et une
+faute de frappe sur un nom de colonne (`colonne_fantome`) passait sans
+erreur de compilation.
+
+**Cause.** `@supabase/supabase-js` 2.117.2 a fait évoluer la signature de
+`SupabaseClient` vers cinq paramètres génériques
+(`Database, SchemaNameOrClientOptions, SchemaName, Schema, ClientOptions`),
+qui s'appuient désormais sur `Omit<Database, "__InternalSupabase">`.
+La version 0.5.2 de `@supabase/ssr` appelle encore
+`SupabaseClient<Database, SchemaName, Schema>` — l'ancienne signature à
+trois paramètres. Le type de schéma se retrouvait donc glissé dans le
+mauvais paramètre, et le schéma effectif dégénérait en `any` puis en
+`never`.
+
+**Correctif appliqué.** Passage de `@supabase/ssr` à `^0.12.7`, dont la
+déclaration s'aligne sur la nouvelle signature
+(`SupabaseClient<Database, SchemaName>`, le schéma étant inféré). La
+stack reste inchangée : Next.js 14 + Supabase + Tailwind + Vercel.
+
+**Vérification.** Après correction, une colonne inexistante produit
+désormais une erreur de compilation explicite :
+
+```
+SelectQueryError<"column 'colonne_fantome' does not exist on 'parametres'.">
+```
+
+> ⚠️ **Ne pas revenir à `@supabase/ssr@0.5.x` ou `0.6.x`** : ces versions
+> reproduisent le défaut. Les versions 0.7.0 et supérieures sont sûres.
+
+### 21.2 Incohérence entre les icônes des constantes et celles de la base
+
+**Symptôme.** `src/lib/constants.ts` décrivait les 14 commissions avec des
+**emojis** (`⚖️`, `📢`, `💼`…), alors que la colonne `icone` de la table
+`commissions` (migration 0003) stocke des **noms d'icônes Lucide**
+(`scale`, `megaphone`, `briefcase`…). Toute commission affichée depuis la
+base aurait donc perdu son icône.
+
+**Correctif appliqué.** `constants.ts` utilise à présent les mêmes noms
+Lucide que la base, et un registre `src/lib/commission-icons.ts` fait le
+lien entre le nom stocké et le composant React. Une icône inconnue retombe
+sur une icône de repli (`landmark`) au lieu de disparaître.
+
+**Bénéfice.** Une commission créée ou modifiée depuis le back-office
+(Phase 4) s'affiche correctement sans aucune modification du code.
+
+---
+---
+
+## 22. Backend local de développement (ajout assumé)
+
+### 22.1 Le problème
+
+Le plan impose Next.js 14 + Supabase. Or certains environnements de
+développement sont **coupés de supabase.com** par un filtrage de sortie.
+Constat mesuré sur un tel environnement :
+
+| Test | Résultat |
+|---|---|
+| DNS `supabase.com` | résout |
+| TCP 443 | ouvert |
+| TLS, SNI `github.com` (même IP) | négocie, certificat valide |
+| TLS, SNI `supabase.com` | **coupé en plein handshake** |
+
+L'IP de sortie est un proxy filtrant par nom d'hôte : seuls `github.com`,
+`registry.npmjs.org` et `pypi.org` sont allowlistés. Tous les hôtes Supabase
+(`supabase.com`, `supabase.co`, `*.supabase.co`, `app.`, `api.`) sont
+injoignables. Les contournements ont été écartés : pas de Docker (donc pas de
+`supabase start`), et PostgREST ne s'installe pas car son binaire est
+téléchargé depuis un hôte bloqué.
+
+Sans backend, aucune page ne peut lire la base : le développement est bloqué.
+
+### 22.2 La solution
+
+Un serveur local (`scripts/backend-local/serveur.mjs`) qui expose le
+sous-ensemble du dialecte **PostgREST + GoTrue + Storage** réellement utilisé
+par l'application, adossé à un **vrai PostgreSQL** lancé localement.
+
+**Le code applicatif n'est pas modifié.** `src/` continue de parler à
+`supabase-js` ; il suffit que `NEXT_PUBLIC_SUPABASE_URL` pointe vers le
+serveur local. Le jour où le projet Supabase cloud existe, on remplace
+`.env.local` et rien d'autre ne change.
+
+Ce qui est implémenté :
+
+| Route | Usage |
+|---|---|
+| `GET /rest/v1/<table>` | filtres `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `is`, `in`, `select`, `order`, `limit`, `offset` |
+| `POST /rest/v1/<table>` | insertion (objet ou tableau) |
+| `PATCH /rest/v1/<table>` | mise à jour filtrée |
+| `DELETE /rest/v1/<table>` | suppression filtrée |
+| `POST /auth/v1/token?grant_type=password` | connexion |
+| `GET /auth/v1/user` | utilisateur courant |
+| `POST/GET /storage/v1/object/...` | dépôt et lecture de fichiers |
+
+### 22.3 La RLS est appliquée pour de vrai
+
+C'est le point important : ce serveur **ne contourne pas la sécurité**.
+Chaque requête s'exécute dans une transaction avec le rôle `anon` ou
+`authenticated` et le JWT décodé, exactement comme le ferait PostgREST :
+
+```sql
+begin;
+set local role anon;
+set local request.jwt.claim.role = 'anon';
+-- … requête applicative …
+commit;
+```
+
+Vérifié de bout en bout sur la base locale :
+
+| Scénario | Résultat |
+|---|---|
+| Visiteur anonyme lit les 14 commissions | ✅ 14 lignes |
+| Visiteur anonyme lit les paramètres publics | ✅ |
+| Visiteur anonyme insère une actualité | ❌ `42501` — violation RLS |
+| Visiteur anonyme lit les adhésions | ❌ 0 ligne |
+| Visiteur anonyme lit la table `admins` | ❌ 0 ligne |
+| Admin se connecte | ✅ JWT obtenu |
+| Admin insère une actualité publiée | ✅ `201` |
+| Visiteur anonyme relit les actualités | ✅ voit le publié, **pas** le brouillon |
+
+Le dernier cas est exactement l'exigence du cahier des charges : un
+brouillon inséré par un admin reste invisible du public.
+
+### 22.4 Utilisation
+
+```bash
+npm run db:local      # prépare la base locale (PostgreSQL + 4 migrations + admin)
+npm run dev:backend   # terminal 1 — backend sur http://127.0.0.1:54321
+npm run dev           # terminal 2 — site sur http://localhost:3000
+```
+
+Compte de développement créé automatiquement :
+`president@ccjp-podor.sn` / `ccjp-local-2026`.
+
+### 22.5 Limites assumées
+
+- **Développement uniquement.** Ce serveur n'a ni la robustesse, ni la
+  sécurité, ni les performances de PostgREST. Il ne doit jamais être déployé.
+- Le hachage des mots de passe repose sur `pgcrypto` (`crypt` + `gen_salt('bf')`),
+  disponible dans le PostgreSQL local.
+- `scripts/backend-local/stubs.sql` émule `auth.users`, `auth.uid()`,
+  `auth.role()` et `storage.*`. **Ce fichier n'est jamais appliqué à Supabase**,
+  qui fournit ces objets. Les migrations du dépôt restent intactes.
+- Les dépendances ajoutées (`pg`, `jsonwebtoken`, `embedded-postgres`,
+  `@embedded-postgres/linux-x64`) sont des `devDependencies` : elles
+  n'alourdissent pas le bundle de production.
+
+### 22.6 Passage à Supabase
+
+Aucune migration de code n'est nécessaire. Il suffit de remplacer `.env.local` :
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<clé anon>
+SUPABASE_SERVICE_ROLE_KEY=<clé service_role>
+SUPABASE_PROJECT_ID=<ref>
+```
+
+puis `npm run db:types` pour régénérer les types depuis le schéma cloud.
 
 *Plan d'implémentation v2.0 — aligné sur le Cahier des Charges CCJP v1.0 (2025).*
 *Conseil Consultatif des Jeunes de Podor — Écoute · Participation · Impact*

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { NOM_CCJP } from "@/lib/constants";
+import { urlSite } from "@/lib/site";
 import "./globals.css";
 
 /**
@@ -13,6 +14,9 @@ import "./globals.css";
  */
 
 export const metadata: Metadata = {
+  // Indispensable pour que les URL relatives des balises OpenGraph
+  // (images, canonical) soient résolues en URL absolues.
+  metadataBase: new URL(urlSite()),
   title: {
     default: `${NOM_CCJP} — CCJP`,
     template: `%s | CCJP Podor`,
