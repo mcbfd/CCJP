@@ -644,12 +644,22 @@ const TYPES_MIME = {
 };
 
 async function handlerStorage(req, res, reste, auth) {
-  // /object/<bucket>/<chemin…>
-  const morceaux = reste.split("/").filter(Boolean);
-  if (morceaux[0] !== "object" || morceaux.length < 3) {
+  // Deux formes d'URL existent selon l'appelant :
+  //   POST/PUT/DELETE : /object/<bucket>/<chemin…>
+  //   GET (publique)  : /object/public/<bucket>/<chemin…>
+  // Le segment « public » est donc facultatif et doit être retiré avant
+  // d'extraire le bucket, sinon le bucket vaudrait « public » et le chemin
+  // « <bucket>/<fichier> » — d'où des 404 sur des fichiers pourtant déposés.
+  let morceaux = reste.split("/").filter(Boolean);
+  if (morceaux[0] !== "object") {
     return json(res, 404, { message: "Chemin Storage invalide." });
   }
-  const [, bucket, ...chemin] = morceaux;
+  morceaux = morceaux.slice(1);
+  if (morceaux[0] === "public") morceaux = morceaux.slice(1);
+  if (morceaux.length < 2) {
+    return json(res, 404, { message: "Chemin Storage invalide." });
+  }
+  const [bucket, ...chemin] = morceaux;
   const fichier = chemin.join("/");
 
   if (req.method === "POST" || req.method === "PUT") {

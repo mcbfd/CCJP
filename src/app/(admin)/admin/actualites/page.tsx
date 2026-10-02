@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, Pencil, Trash2, Pin, PinOff, Eye } from "lucide-react";
+import { Plus, Pencil, Pin, PinOff, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink, Button } from "@/components/ui/Button";
 import { createClient, isCurrentUserAdmin } from "@/lib/supabase/server";
 import { formatDateCourteFr } from "@/lib/utils";
+import { BoutonSuppression } from "@/components/admin/BoutonSuppression";
 import {
   actionEpingler,
   actionPublier,
@@ -167,24 +168,12 @@ export default async function AdminActualitesPage({
                     Modifier
                   </ButtonLink>
 
-                  <form
+                  <BoutonSuppression
                     action={actionSupprimer}
-                    onSubmit={(e) => {
-                      if (
-                        !confirm(
-                          "Supprimer définitivement cet article ? Cette action est irréversible.",
-                        )
-                      ) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="id" value={a.id} />
-                    <Button type="submit" variante="fantome" taille="sm">
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      <span className="sr-only">Supprimer</span>
-                    </Button>
-                  </form>
+                    id={a.id}
+                    confirmation="Supprimer définitivement cet article ? Cette action est irréversible."
+                    libelle="Supprimer l'article"
+                  />
                 </div>
               </Card>
             </li>
