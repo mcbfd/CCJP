@@ -52,7 +52,7 @@
  */
 
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -656,7 +656,12 @@ async function handlerStorage(req, res, reste, auth) {
   }
   morceaux = morceaux.slice(1);
   if (morceaux[0] === "public") morceaux = morceaux.slice(1);
-  if (morceaux.length < 2) {
+
+  // Pour DELETE, l'URL ne porte que le bucket : les chemins des fichiers à
+  // supprimer sont dans le corps JSON de la requête. Exiger un chemin ici
+  // rejetterait donc toute suppression avec « Chemin Storage invalide ».
+  const exigeChemin = req.method !== "DELETE";
+  if (morceaux.length < 1 || (exigeChemin && morceaux.length < 2)) {
     return json(res, 404, { message: "Chemin Storage invalide." });
   }
   const [bucket, ...chemin] = morceaux;
@@ -686,6 +691,42 @@ async function handlerStorage(req, res, reste, auth) {
       Key: `${bucket}/${fichier}`,
       Id: cryptoRandomId(),
     });
+  }
+
+  if (req.method === "DELETE") {
+    // supabase-js envoie DELETE /object/<bucket> avec un corps JSON
+    // { prefixes: ["chemin1", "chemin2"] }. Le bucket est donc dans l'URL et
+    // les chemins dans le corps — pas l'inverse.
+    if (!auth.sub) {
+      return json(res, 401, { message: "Authentification requise pour supprimer un fichier." });
+    }
+    const r = await pool.query(
+      `select exists(select 1 from public.admins where user_id = $1 and actif) as admin`,
+      [auth.sub],
+    );
+    if (!r.rows[0]?.admin) {
+      return json(res, 403, { message: "Seul un administrateur habilité peut supprimer un fichier." });
+    }
+
+    const corps = await lireCorps(req);
+    const prefixes = Array.isArray(corps?.prefixes) ? corps.prefixes : [];
+    if (prefixes.length === 0) {
+      return json(res, 400, { message: "Aucun fichier à supprimer." });
+    }
+
+    const supprimes = [];
+    for (const prefixe of prefixes) {
+      if (typeof prefixe !== "string" || !prefixe) continue;
+      // Garde-fou : le chemin ne doit jamais s'échapper du bucket.
+      if (prefixe.split("/").includes("..")) continue;
+      const cible = join(STOCKAGE, bucket, prefixe);
+      if (existsSync(cible)) {
+        rmSync(cible, { recursive: true, force: true });
+        supprimes.push(prefixe);
+      }
+    }
+
+    return json(res, 200, supprimes.map((p) => ({ name: p, bucket })));
   }
 
   if (req.method === "GET") {
