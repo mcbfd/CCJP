@@ -6,6 +6,7 @@ import { CheckCircle2, Send, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { envoyerMessage } from "./actions";
+import { ChampsAntiRobot } from "@/components/forms/ChampsAntiRobot";
 import { ETAT_INITIAL } from "./types";
 
 /**
@@ -147,6 +148,7 @@ export function FormulaireContact({ sujets }: FormulaireContactProps) {
 
   return (
     <form action={action} noValidate className="space-y-5">
+      <ChampsAntiRobot />
       {etat.erreur && (
         <p
           role="alert"

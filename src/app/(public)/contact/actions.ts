@@ -20,6 +20,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getParametresSite } from "@/lib/parametres";
 import {
+  MESSAGE_TROP_RAPIDE,
+  examinerSoumission,
+} from "@/lib/anti-bot";
+import {
   MESSAGE_MIN,
   champ,
   estEmailValide,
@@ -62,6 +66,22 @@ export async function envoyerMessage(
   }
 
   if (Object.keys(champs).length > 0) return { champs };
+
+  // Garde-fous anti-robot (§7.5). Placés APRÈS la validation des champs :
+  // ainsi une vraie personne qui a mal rempli le formulaire reçoit d'abord
+  // les messages utiles, et le contrôle anti-robot n'intervient que sur une
+  // soumission par ailleurs complète.
+  const verdict = examinerSoumission(formData);
+
+  if (verdict.issue === "silencieux") {
+    // Champ piège rempli : on ne répond rien d'utile au robot. Le message de
+    // succès lui fait croire que son envoi est passé, donc il ne réessaie pas.
+    return { succes: true };
+  }
+
+  if (verdict.issue === "tropRapide" || verdict.issue === "horlogeInvalide") {
+    return { erreur: MESSAGE_TROP_RAPIDE };
+  }
 
   try {
     const supabase = createClient();

@@ -22,6 +22,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getParametresSite } from "@/lib/parametres";
 import {
+  MESSAGE_TROP_RAPIDE,
+  examinerSoumission,
+} from "@/lib/anti-bot";
+import {
   champ,
   estEmailValide,
   estTelephoneValide,
@@ -73,6 +77,18 @@ export async function envoyerAdhesion(
   }
 
   if (Object.keys(champs).length > 0) return { champs };
+
+  // Garde-fous anti-robot (§7.5) — voir contact/actions.ts pour le détail du
+  // raisonnement. Ils ne s'appliquent qu'aux soumissions par ailleurs valides.
+  const verdict = examinerSoumission(formData);
+
+  if (verdict.issue === "silencieux") {
+    return { succes: true };
+  }
+
+  if (verdict.issue === "tropRapide" || verdict.issue === "horlogeInvalide") {
+    return { erreur: MESSAGE_TROP_RAPIDE };
+  }
 
   try {
     const supabase = createClient();

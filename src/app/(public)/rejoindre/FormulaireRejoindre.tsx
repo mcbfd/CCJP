@@ -6,6 +6,7 @@ import { CheckCircle2, UserPlus, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { envoyerAdhesion } from "./actions";
+import { ChampsAntiRobot } from "@/components/forms/ChampsAntiRobot";
 import { ETAT_INITIAL, type OptionCommission } from "./types";
 
 /**
@@ -150,6 +151,7 @@ export function FormulaireRejoindre({
 
   return (
     <form action={action} noValidate className="space-y-5">
+      <ChampsAntiRobot />
       {etat.erreur && (
         <p
           role="alert"
