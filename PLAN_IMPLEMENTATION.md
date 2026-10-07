@@ -1480,15 +1480,53 @@ npm run db:types
 
 | ID | Tâche | Critère d'acceptation |
 |---|---|---|
-| P5.1 | Push sur GitHub | Code poussé |
+| P5.1 | Push sur GitHub | Code poussé | ✅ |
 | P5.2 | Connexion Vercel → GitHub | Déploiement automatique |
 | P5.3 | Variables d'environnement sur Vercel | Les 5 variables renseignées |
 | P5.4 | Configuration du domaine `ccjp-podor.sn` | HTTPS actif |
-| P5.5 | Tests end-to-end (formulaires, admin, pages) | Tous les parcours passent |
-| P5.6 | Tests de sécurité (RLS, routes protégées) | Aucun accès non autorisé |
+| P5.5 | Tests end-to-end (formulaires, admin, pages) | Tous les parcours passent | ✅ 74/74 (local) |
+| P5.6 | Tests de sécurité (RLS, routes protégées) | Aucun accès non autorisé | ✅ 74/74 (local) |
 | P5.7 | Seeding des données réelles | Aucune donnée de démonstration |
 | P5.8 | Formation des administrateurs | Chacun publie une actualité seul |
-| P5.9 | Guide d'utilisation remis au Bureau | Document livré |
+| P5.9 | Guide d'utilisation remis au Bureau | Document livré | ✅ `docs/GUIDE-UTILISATION.md` |
+
+> **État d'avancement Phase 5.**
+>
+> **Fait, vérifié en local :**
+>
+> - **P5.1** — le code est poussé sur `arena/01a0f1ae-ccjp`.
+> - **P5.5** — suite rejouable `scripts/tests/parcours-complet.cjs`, **74
+>   contrôles, 0 échec** : site public (9 pages, 404 en français, sitemap,
+>   robots, API `.ics`), authentification, protection des 9 pages `/admin`,
+>   politiques RLS, cycle de publication complet (brouillon → publié → modifié
+>   → dépublié → supprimé), formulaires publics, médiathèque, export CSV,
+>   paramètres, protections anti-robot.
+> - **P5.6** — les contrôles de sécurité ci-dessus confirment : aucun accès
+>   anonyme aux données personnelles (`contacts`, `adhesions`), aucune clé de
+>   paramètre sensible exposée, 9 pages `/admin` redirigées vers
+>   `/auth/login` sans session, export CSV en 401 sans session valide, dépôt
+>   de fichier refusé à un anonyme.
+> - **P5.9** — `docs/GUIDE-UTILISATION.md`, en français, calé sur les 9 modules
+>   réellement livrés.
+>
+> **Reste à la charge de l'utilisateur** (nécessite ses comptes et ses données) :
+> **P5.2** (connexion Vercel), **P5.3** (variables d'environnement), **P5.4**
+> (domaine `ccjp-podor.sn`), **P5.7** (saisie des données réelles), **P5.8**
+> (formation des administrateurs).
+>
+> **Limite connue de P5.5.** Les Server Actions de Next.js ne sont pas
+> appelables par HTTP brut sans navigateur : leur identifiant est normalisé à
+> l'exécution et absent du HTML servi. La couche données et les politiques RLS
+> sont donc validées en rejouant exactement les requêtes que les actions
+> émettent. L'invocation littérale d'une action et l'hydratation React
+> demandent un test au navigateur, à faire après le déploiement (P5.4).
+>
+> **Correction de sécurité livrée au passage.** Les protections §7.5 points 2
+> et 3 (champ honeypot, rejet si soumission en moins de 3 secondes) n'étaient
+> pas implémentées. Elles le sont désormais : `src/lib/anti-bot.ts` et
+> `src/components/forms/ChampsAntiRobot.tsx`, branchés sur les formulaires
+> contact et rejoindre. La limitation de débit (§7.5 point 4) reste à faire au
+> middleware Vercel, donc lors du déploiement.
 
 ---
 
