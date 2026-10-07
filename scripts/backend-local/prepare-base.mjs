@@ -6,7 +6,8 @@
  * ligne, sans projet Supabase. Ils ne sont PAS une implémentation de
  * production :
  *   - les identifiants (`president@ccjp-podor.sn` / `ccjp-local-2026`) et les
- *     clés JWT sont des valeurs de test écrites en clair dans ce dépôt ;
+ *     clés JWT sont générés localement et signés avec un secret de test ;
+ *     ils n'ont aucune valeur hors de cette machine ;
  *   - le backend local n'est pas PostgREST : il ne gère qu'un sous-ensemble
  *     de sa syntaxe et de ses en-têtes.
  *
@@ -34,10 +35,11 @@
  */
 
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import jwt from "jsonwebtoken";
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ICI, "..", "..");
@@ -125,10 +127,68 @@ async function attendreServeur(tentatives = 30) {
  * Ce script recrée donc le fichier automatiquement. Un `.env.local` existant
  * n'est JAMAIS écrasé : il peut contenir les vraies valeurs Supabase.
  */
+/**
+ * Le `.env.local` existant est-il exploitable ?
+ *
+ * On répond oui dans deux cas seulement :
+ *   1. il pointe vers un Supabase distant (l'utilisateur a renseigné ses
+ *      vraies valeurs — on n'y touche sous aucun prétexte) ;
+ *   2. il pointe vers le backend local et sa clé anonyme est signée avec le
+ *      secret local, donc réellement acceptée par le backend.
+ *
+ * Tout le reste est considéré cassé : mieux vaut le régénérer que laisser le
+ * site tourner sur des identifiants que rien ne valide.
+ */
+function envLocalUtilisable(chemin) {
+  try {
+    const contenu = readFileSync(chemin, "utf8");
+    const url = /^NEXT_PUBLIC_SUPABASE_URL=(.+)$/m.exec(contenu)?.[1]?.trim();
+    const anon = /^NEXT_PUBLIC_SUPABASE_ANON_KEY=(.+)$/m.exec(contenu)?.[1]?.trim();
+    if (!url || !anon) return false;
+
+    // Cas 1 — projet Supabase distant.
+    if (/^https?:\/\//.test(url) && !url.includes("127.0.0.1") && !url.includes("localhost")) {
+      return true;
+    }
+
+    // Cas 2 — backend local : la signature doit être la bonne.
+    jwt.verify(anon, JWT_SECRET);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Secret de signature des JWT locaux. Il DOIT être identique à celui que
+// serveur.mjs utilise pour vérifier les jetons, sinon aucune requête
+// authentifiée ne passe. serveur.mjs lit la variable d'environnement
+// BACKEND_JWT_SECRET et retombe sur cette même valeur par défaut.
+const JWT_SECRET = process.env.BACKEND_JWT_SECRET ?? "ccjp-secret-local-developpement";
+
+// Jetons réellement signés, et non des chaînes qui ressemblent à des JWT.
+// Une fausse signature faisait échouer silencieusement chaque appel : le
+// backend répondait 401 et le site affichait des sections vides.
+const JETON_ANON = jwt.sign({ role: "anon", iss: "ccjp-local" }, JWT_SECRET);
+const JETON_SERVICE = jwt.sign(
+  { role: "service_role", iss: "ccjp-local" },
+  JWT_SECRET,
+);
+
 function provisionnerEnvLocal() {
   const cible = join(RACINE, ".env.local");
 
-  if (existsSync(cible)) {
+  // Un `.env.local` existant n'est écrasé que s'il est inutilisable.
+  //
+  // Le cas à préserver : le fichier pointe vers le VRAI projet Supabase, ou
+  // bien vers le backend local avec des jetons que ce backend accepte.
+  //
+  // Le cas à régénérer : le fichier pointe vers le backend local mais porte
+  // des clés que le backend rejette. C'est ce qui arrivait après une
+  // réinitialisation d'espace de travail : `db:local` écrivait des chaînes qui
+  // ressemblaient à des JWT sans en être, puis toute exécution suivante les
+  // « préservait » au motif qu'elles auraient été réelles. Le site démarrait
+  // alors sur des sections vides, sans le moindre message d'erreur.
+  if (existsSync(cible) && envLocalUtilisable(cible)) {
     ok(".env.local existant conservé (valeurs Supabase réelles préservées)");
     return;
   }
@@ -146,8 +206,8 @@ function provisionnerEnvLocal() {
 # =====================================================================
 
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:${PORT_BACKEND}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6ImNjanAtbG9jYWwifQ.local-dev-anon-key
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoiY2NqcC1sb2NhbCJ9.local-dev-service-key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${JETON_ANON}
+SUPABASE_SERVICE_ROLE_KEY=${JETON_SERVICE}
 
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SITE_NAME=CCJP - Conseil Consultatif des Jeunes de Podor
