@@ -184,6 +184,20 @@ function veutCompteExact(req) {
   return /(^|,\s*)count=exact/i.test(prefer);
 }
 
+/**
+ * Le client demande-t-il un UPSERT ?
+ *
+ * supabase-js envoie `Prefer: resolution=merge-duplicates` quand on appelle
+ * `.upsert(...)`. PostgREST traduit cela par
+ * `INSERT ... ON CONFLICT (<clé>) DO UPDATE SET ...`. Sans ce support,
+ * l'upsert est traité comme un INSERT ordinaire et échoue sur la clé
+ * primaire déjà présente — c'est ce qui rendait la page Paramètres inutilisable.
+ */
+function cleConflit(req) {
+  const prefer = String(req.headers.prefer ?? req.headers["prefer"] ?? "");
+  return /(^|,\s*)resolution=merge-duplicates/i.test(prefer);
+}
+
 function veutRepresentation(req) {
   const prefer = String(req.headers.prefer ?? req.headers["prefer"] ?? "");
   return /(^|,\s*)return=representation/i.test(prefer);
@@ -323,6 +337,7 @@ async function executer({ sql, params = [], role, sub }) {
 
 /** Charge les colonnes réelles d'une table (pour valider `select`). */
 const cacheColonnes = new Map();
+const cacheClePrimaire = new Map();
 async function colonnesDe(table) {
   if (cacheColonnes.has(table)) return cacheColonnes.get(table);
   const r = await pool.query(
@@ -333,6 +348,27 @@ async function colonnesDe(table) {
   const ens = new Set(r.rows.map((x) => x.column_name));
   cacheColonnes.set(table, ens);
   return ens;
+}
+
+/**
+ * Retourne le nom de la clé primaire d'une table, ou null.
+ *
+ * Nécessaire pour construire le `ON CONFLICT` d'un upsert. Sur le schéma CCJP,
+ * toutes les tables ont une clé primaire simple : `id` partout, sauf
+ * `parametres` dont la clé primaire est `cle`.
+ */
+async function clePrimaire(table) {
+  if (cacheClePrimaire.has(table)) return cacheClePrimaire.get(table);
+  const r = await pool.query(
+    `select a.attname
+       from pg_index i
+       join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+      where i.indrelid = $1::regclass and i.indisprimary`,
+    [`public.${table}`],
+  );
+  const cle = r.rows[0]?.attname ?? null;
+  cacheClePrimaire.set(table, cle);
+  return cle;
 }
 
 // ---------------------------------------------------------------------
@@ -475,9 +511,30 @@ async function handlerRest(req, res, table, auth) {
     // `returning *` uniquement si le client le demande : sinon l'INSERT
     // anonyme sur `contacts`/`adhesions` serait rejeté par la politique SELECT.
     const retour = veutRepresentation(req) ? " returning *" : "";
+    // UPSERT : `ON CONFLICT (clé primaire) DO UPDATE`. En PostgreSQL, cet
+    // ordre est imposé : VALUES, puis ON CONFLICT, puis RETURNING. La liste
+    // des colonnes mises à jour exclut la clé primaire elle-même.
+    //
+    // ⚠️ Ne JAMAIS construire ce clause par `sql.replace(retour, …)` : quand
+    //    le client ne demande pas `return=representation`, `retour` vaut "" et
+    //    `replace` insère alors la clause en TÊTE de requête — d'où une erreur
+    //    « syntax error at or near "on" ».
+    const conflit = cleConflit(req);
+    const pk = await clePrimaire(table);
+    const misesAJour = cles.filter((c) => c !== pk);
+    const clauseConflit =
+      conflit && pk
+        ? ` on conflict ("${pk}") do update set ${(misesAJour.length > 0
+            ? misesAJour
+            : [pk]
+          )
+            .map((c) => `"${c}" = excluded."${c}"`)
+            .join(", ")}`
+        : "";
+
     const sql = `insert into public."${table}" (${cles
       .map((c) => `"${c}"`)
-      .join(", ")}) values ${placeholders.join(", ")}${retour}`;
+      .join(", ")}) values ${placeholders.join(", ")}${clauseConflit}${retour}`;
 
     try {
       const r = await executer({ sql, params: valeurs, role: auth.role, sub: auth.sub });
